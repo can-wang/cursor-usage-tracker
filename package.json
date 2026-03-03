@@ -15,8 +15,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "prepare": "husky",
-    "collect": "tsx src/lib/cli/collect.ts",
-    "detect": "tsx src/lib/cli/detect.ts",
+    "collect": "npx tsx --env-file=.env src/lib/cli/collect.ts",
+    "detect": "npx tsx --env-file=.env src/lib/cli/detect.ts",
     "generate:mock": "tsx scripts/generate-mock-db.ts",
     "dev:mock": "DATABASE_PATH=data/mock.db next dev"
   },
