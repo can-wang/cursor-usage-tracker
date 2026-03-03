@@ -193,7 +193,6 @@ DASHBOARD_URL=http://localhost:3000
 
 # Optional
 CRON_SECRET=your_secret_here                  # protects the cron endpoint
-DASHBOARD_PASSWORD=your_password              # optional basic auth for the dashboard
 
 # Email alerts via Resend (optional)
 RESEND_API_KEY=re_xxxxxxxxxxxx
@@ -373,6 +372,44 @@ The import uses HiBob's `Group` and `Team` columns (falling back to `Department`
 > The HiBob import updates your local billing groups only. It does not push changes back to HiBob or to Cursor's billing API.
 
 </details>
+
+---
+
+## Authentication
+
+Authentication is **fully optional**. When no auth environment variables are set, the dashboard is open (the default behavior). Setting `AUTH_SECRET` enables Google OAuth sign-in.
+
+### Setup
+
+1. Create a [Google OAuth app](https://console.cloud.google.com/apis/credentials) with redirect URI:
+   - Local: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://your-domain.com/api/auth/callback/google`
+
+2. Add to your `.env`:
+
+```bash
+AUTH_SECRET=$(openssl rand -base64 32)       # encryption key for sessions
+AUTH_GOOGLE_ID=your-client-id.apps.google... # Google OAuth client ID
+AUTH_GOOGLE_SECRET=GOCSPX-...               # Google OAuth client secret
+AUTH_TRUST_HOST=true                         # required behind a reverse proxy
+AUTH_URL=https://your-domain.com             # public URL (auto-detected locally)
+```
+
+3. Optionally restrict access by domain or specific emails:
+
+```bash
+AUTH_ALLOWED_DOMAIN=yourcompany.com          # only @yourcompany.com emails
+AUTH_ALLOWED_EMAILS=admin@example.com,cto@example.com  # or specific emails
+```
+
+When both are set, either match grants access. When neither is set, any Google account can sign in.
+
+### How It Works
+
+- Sessions use encrypted JWT cookies — no database tables needed
+- The `/api/cron` endpoint is excluded from auth (it uses its own `CRON_SECRET`)
+- Sign-in page appears automatically when auth is enabled
+- User avatar and sign-out menu appear in the nav bar
 
 ---
 

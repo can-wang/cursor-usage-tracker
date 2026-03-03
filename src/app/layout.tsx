@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { NavLinks } from "@/components/nav-links";
 import { UpgradeBanner } from "@/components/upgrade-banner";
+import { UserMenu } from "@/components/user-menu";
+import { auth, signOut } from "@/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +13,9 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.png" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = process.env.AUTH_SECRET ? await auth() : null;
+
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen">
@@ -25,7 +29,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Link>
                 <NavLinks />
               </div>
-              <UpgradeBanner />
+              <div className="flex items-center gap-2">
+                <UpgradeBanner />
+                {session?.user && (
+                  <UserMenu
+                    name={session.user.name ?? session.user.email ?? "User"}
+                    email={session.user.email ?? ""}
+                    image={session.user.image ?? undefined}
+                    signOutAction={async () => {
+                      "use server";
+                      await signOut({ redirectTo: "/login" });
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </nav>
