@@ -277,13 +277,24 @@ volumes:
 
 </details>
 
-### Cloud platforms
+### Fly.io (recommended free option)
 
-Any platform that supports Docker + persistent volumes works. Tested with:
+```bash
+fly launch --copy-config          # creates the app from fly.toml
+fly volumes create tracker_data --region ams --size 1
+fly secrets set CURSOR_ADMIN_API_KEY=your_key CRON_SECRET=your_secret
+fly deploy
+# Dashboard at https://your-app.fly.dev
+```
+
+Set up hourly collection by adding `DASHBOARD_URL` and `CRON_SECRET` as [GitHub Actions secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) — the included `.github/workflows/cron.yml` workflow triggers `/api/cron` every hour.
+
+### Other cloud platforms
+
+Any platform that supports Docker + persistent volumes works:
 
 - **[Render](https://render.com)** — use the deploy button above, or `render.yaml` in this repo
 - **[Railway](https://railway.app)** — create a project from this repo, attach a volume at `/app/data`
-- **[Fly.io](https://fly.io)** — deploy with `fly launch`, create a volume for `/app/data`
 
 > **Note:** Vercel is not supported — SQLite requires a persistent filesystem that Vercel's serverless functions don't provide.
 
