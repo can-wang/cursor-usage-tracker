@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMetadata, setMetadata } from "@/lib/db";
+import { getMetadata, setMetadata } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 

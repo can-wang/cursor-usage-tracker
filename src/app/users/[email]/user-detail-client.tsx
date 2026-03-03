@@ -6,7 +6,7 @@ import { formatDateShort } from "@/lib/date-utils";
 import { shortModel } from "@/lib/format-utils";
 import { ExpandableCard } from "@/components/expandable-card";
 import type { Anomaly } from "@/lib/types";
-import type { UsageBadge, SpendBadge, ContextBadge, AdoptionBadge } from "@/lib/db";
+import type { UsageBadge, SpendBadge, ContextBadge, AdoptionBadge } from "@/lib/data";
 
 interface UserStats {
   member:

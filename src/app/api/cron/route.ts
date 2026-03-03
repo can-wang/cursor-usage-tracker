@@ -4,7 +4,7 @@ import { runDetection } from "@/lib/anomaly/detector";
 import { processNewAnomalies } from "@/lib/incidents";
 import { sendAlerts } from "@/lib/alerts";
 import { sendPlanExhaustionAlert, sendCycleSummary } from "@/lib/alerts/slack";
-import { getMetadata, setMetadata, getPlanExhaustionStats, getCycleSummaryData } from "@/lib/db";
+import { getMetadata, setMetadata, getPlanExhaustionStats, getCycleSummaryData } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;

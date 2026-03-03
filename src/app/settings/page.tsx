@@ -1,4 +1,4 @@
-import { getConfig } from "@/lib/db";
+import { getConfig } from "@/lib/data";
 import { DEFAULT_CONFIG } from "@/lib/types";
 import { SettingsClient } from "./settings-client";
 

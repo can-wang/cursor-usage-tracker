@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getUserStats } from "@/lib/db";
+import { getUserStats } from "@/lib/data";
 import { UserDetailClient } from "./user-detail-client";
 
 export const dynamic = "force-dynamic";

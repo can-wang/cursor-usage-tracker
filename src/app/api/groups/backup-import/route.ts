@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getDb, getGroupsWithMembers } from "@/lib/db";
+import {
+  getGroupsWithMembers,
+  createBillingGroupWithId,
+  reassignMemberToGroup,
+  refreshGroupMemberCounts,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +99,6 @@ export async function POST(request: Request) {
     return NextResponse.json(preview);
   }
 
-  const db = getDb();
   const existingGroupIds = new Map<string, string>();
   for (const g of currentGroups) {
     existingGroupIds.set(g.name, g.id);
@@ -105,9 +109,7 @@ export async function POST(request: Request) {
   for (const groupName of newGroupNames) {
     if (!existingGroupIds.has(groupName)) {
       const id = `restore_${nextId++}`;
-      db.prepare(
-        "INSERT INTO billing_groups (id, name, member_count, spend_cents) VALUES (?, ?, 0, 0)",
-      ).run(id, groupName);
+      createBillingGroupWithId(id, groupName);
       existingGroupIds.set(groupName, id);
     }
   }
@@ -116,17 +118,12 @@ export async function POST(request: Request) {
   for (const change of changes) {
     const targetId = existingGroupIds.get(change.newGroup);
     if (!targetId) continue;
-    db.prepare("DELETE FROM group_members WHERE email = ?").run(change.email);
-    db.prepare(
-      "INSERT INTO group_members (group_id, email, joined_at) VALUES (?, ?, datetime('now'))",
-    ).run(targetId, change.email);
+    reassignMemberToGroup(change.email, targetId);
     applied++;
   }
 
   if (applied > 0) {
-    db.prepare(
-      "UPDATE billing_groups SET member_count = (SELECT COUNT(*) FROM group_members WHERE group_id = billing_groups.id)",
-    ).run();
+    refreshGroupMemberCounts();
   }
 
   return NextResponse.json({ ...preview, applied });

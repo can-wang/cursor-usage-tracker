@@ -1,5 +1,5 @@
 import type { Anomaly, DetectionConfig } from "../types";
-import { getConfig, insertAnomaly, getOpenAnomalies, resolveAnomaly } from "../db";
+import { getConfig, insertAnomaly, getOpenAnomalies, resolveAnomaly } from "../data";
 import { detectThresholdAnomalies } from "./thresholds";
 import { detectZScoreAnomalies } from "./zscore";
 import { detectTrendAnomalies } from "./trends";

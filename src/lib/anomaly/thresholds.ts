@@ -1,23 +1,18 @@
 import type { Anomaly, DetectionConfig } from "../types";
-import { getDb } from "../db";
+import {
+  getLatestCycleSpenders,
+  getActiveDailyUsage,
+  getLatestCycleStart,
+  getPlanExhaustedUsers,
+  getMetadata,
+  getTeamTotalSpendForCycle,
+} from "../data";
 
 export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
-  const db = getDb();
   const anomalies: Anomaly[] = [];
   const now = new Date().toISOString();
 
-  const spenders = db
-    .prepare(
-      `SELECT email, name, spend_cents, included_spend_cents, fast_premium_requests
-       FROM spending WHERE cycle_start = (SELECT MAX(cycle_start) FROM spending)`,
-    )
-    .all() as Array<{
-    email: string;
-    name: string;
-    spend_cents: number;
-    included_spend_cents: number;
-    fast_premium_requests: number;
-  }>;
+  const spenders = getLatestCycleSpenders();
 
   for (const s of spenders) {
     if (
@@ -44,18 +39,7 @@ export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
   }
 
   const today = new Date().toISOString().split("T")[0] ?? "";
-  const dailyRequests = db
-    .prepare(
-      `SELECT email, agent_requests, usage_based_reqs, most_used_model
-       FROM daily_usage
-       WHERE date = ? AND is_active = 1`,
-    )
-    .all(today) as Array<{
-    email: string;
-    agent_requests: number;
-    usage_based_reqs: number;
-    most_used_model: string;
-  }>;
+  const dailyRequests = getActiveDailyUsage(today);
 
   for (const r of dailyRequests) {
     if (
@@ -81,29 +65,10 @@ export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
     }
   }
 
-  const cycleStartRow = db.prepare("SELECT MAX(cycle_start) as cs FROM spending").get() as {
-    cs: string | null;
-  };
-  const cycleStart = cycleStartRow?.cs;
+  const cycleStart = getLatestCycleStart();
 
   if (cycleStart && config.enableInfoAnomalies) {
-    const planExhausted = db
-      .prepare(
-        `SELECT du.email, m.name, MIN(du.date) as exhausted_on,
-           SUM(du.usage_based_reqs) as total_usage_reqs,
-           SUM(du.agent_requests) as total_agent_reqs
-         FROM daily_usage du
-         LEFT JOIN members m ON du.email = m.email
-         WHERE du.date >= ? AND du.usage_based_reqs > 0
-         GROUP BY du.email`,
-      )
-      .all(cycleStart) as Array<{
-      email: string;
-      name: string | null;
-      exhausted_on: string;
-      total_usage_reqs: number;
-      total_agent_reqs: number;
-    }>;
+    const planExhausted = getPlanExhaustedUsers(cycleStart);
 
     for (const u of planExhausted) {
       const name = u.name ?? u.email;
@@ -130,10 +95,8 @@ export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
     }
   }
 
-  const limitedRow = db
-    .prepare("SELECT value FROM metadata WHERE key = 'limited_users_count'")
-    .get() as { value: string } | undefined;
-  const limitedCount = limitedRow ? parseInt(limitedRow.value, 10) : 0;
+  const limitedCountStr = getMetadata("limited_users_count");
+  const limitedCount = limitedCountStr ? parseInt(limitedCountStr, 10) : 0;
 
   if (limitedCount > 0) {
     anomalies.push({
@@ -153,19 +116,12 @@ export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
     });
   }
 
-  const budgetRow = db
-    .prepare("SELECT value FROM metadata WHERE key = 'team_budget_threshold'")
-    .get() as { value: string } | undefined;
-  const budgetThreshold = budgetRow ? parseFloat(budgetRow.value) : 0;
+  const budgetStr = getMetadata("team_budget_threshold");
+  const budgetThreshold = budgetStr ? parseFloat(budgetStr) : 0;
 
   if (budgetThreshold > 0) {
-    const teamSpendRow = db
-      .prepare(
-        `SELECT COALESCE(SUM(spend_cents), 0) as total FROM spending
-         WHERE cycle_start = (SELECT MAX(cycle_start) FROM spending)`,
-      )
-      .get() as { total: number };
-    const teamSpendDollars = teamSpendRow.total / 100;
+    const teamSpendCents = getTeamTotalSpendForCycle();
+    const teamSpendDollars = teamSpendCents / 100;
 
     if (teamSpendDollars >= budgetThreshold) {
       anomalies.push({

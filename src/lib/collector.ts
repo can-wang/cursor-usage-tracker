@@ -22,7 +22,7 @@ import {
   upsertAICodeCommits,
   logCollection,
   setMetadata,
-} from "./db";
+} from "./data";
 
 export interface CollectionResult {
   members: number;

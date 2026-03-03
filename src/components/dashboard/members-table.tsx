@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import type { RankedUser, UsageBadge, SpendBadge, ContextBadge, AdoptionBadge } from "@/lib/db";
+import type { RankedUser, UsageBadge, SpendBadge, ContextBadge, AdoptionBadge } from "@/lib/data";
 import type { SortColumn } from "@/app/dashboard-client";
 import { shortModel } from "@/lib/format-utils";
 

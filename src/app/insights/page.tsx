@@ -12,7 +12,7 @@ import {
   getModelEfficiency,
   getPlanExhaustionStats,
   getGroupsWithMembers,
-} from "@/lib/db";
+} from "@/lib/data";
 import { InsightsClient } from "./insights-client";
 
 export const dynamic = "force-dynamic";

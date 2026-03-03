@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getGroupsWithMembers, getDb } from "@/lib/db";
+import {
+  getGroupsWithMembers,
+  renameBillingGroup,
+  createBillingGroup,
+  assignMemberToGroup,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -18,29 +23,17 @@ export async function PATCH(request: Request) {
   };
 
   if (body.action === "rename" && body.groupId && body.name) {
-    const db = getDb();
-    db.prepare("UPDATE billing_groups SET name = ? WHERE id = ?").run(body.name, body.groupId);
+    renameBillingGroup(body.groupId, body.name);
     return NextResponse.json({ ok: true });
   }
 
   if (body.action === "create" && body.name) {
-    const db = getDb();
-    const id = `local_${Date.now()}`;
-    db.prepare(
-      "INSERT INTO billing_groups (id, name, member_count, spend_cents) VALUES (?, ?, 0, 0)",
-    ).run(id, body.name);
+    const id = createBillingGroup(body.name);
     return NextResponse.json({ ok: true, id });
   }
 
   if (body.action === "assign" && body.email && body.targetGroupId) {
-    const db = getDb();
-    db.prepare("DELETE FROM group_members WHERE email = ?").run(body.email);
-    db.prepare(
-      "INSERT INTO group_members (group_id, email, joined_at) VALUES (?, ?, datetime('now'))",
-    ).run(body.targetGroupId, body.email);
-    db.prepare(
-      "UPDATE billing_groups SET member_count = (SELECT COUNT(*) FROM group_members WHERE group_id = billing_groups.id)",
-    ).run();
+    assignMemberToGroup(body.email, body.targetGroupId);
     return NextResponse.json({ ok: true });
   }
 

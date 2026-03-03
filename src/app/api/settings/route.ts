@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getConfig, saveConfig } from "@/lib/db";
+import { getConfig, saveConfig } from "@/lib/data";
 import type { DetectionConfig } from "@/lib/types";
 
 export const dynamic = "force-dynamic";

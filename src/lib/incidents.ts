@@ -1,5 +1,5 @@
 import type { Anomaly, Incident } from "./types";
-import { insertIncident, updateIncidentStatus, getOpenIncidents, markAnomalyAlerted } from "./db";
+import { insertIncident, updateIncidentStatus, getOpenIncidents, markAnomalyAlerted } from "./data";
 
 function minutesBetween(a: string, b: string): number {
   return (new Date(b).getTime() - new Date(a).getTime()) / 60_000;

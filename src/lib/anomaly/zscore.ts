@@ -1,5 +1,5 @@
 import type { Anomaly, DetectionConfig } from "../types";
-import { getDb } from "../db";
+import { getDailySpendWithNames, getLatestDailySpendDate } from "../data";
 
 const MIN_DAILY_SPEND_CENTS = 5000;
 
@@ -9,34 +9,14 @@ function computeZScore(value: number, mean: number, stddev: number): number {
 }
 
 export function detectZScoreAnomalies(config: DetectionConfig): Anomaly[] {
-  const db = getDb();
   const anomalies: Anomaly[] = [];
   const now = new Date().toISOString();
   const { multiplier } = config.zscore;
 
-  const latestDate = db.prepare("SELECT MAX(date) as d FROM daily_spend").get() as {
-    d: string | null;
-  };
+  const targetDate = getLatestDailySpendDate();
+  if (!targetDate) return anomalies;
 
-  if (!latestDate.d) return anomalies;
-  const targetDate = latestDate.d;
-
-  const todaySpend = db
-    .prepare(
-      `SELECT ds.email, ds.spend_cents,
-              COALESCE(m.name, ds.email) as name,
-              COALESCE(du.most_used_model, '') as most_used_model
-       FROM (SELECT email, MAX(spend_cents) as spend_cents FROM daily_spend WHERE date = ? GROUP BY email) ds
-       LEFT JOIN members m ON ds.email = m.email
-       LEFT JOIN daily_usage du ON ds.email = du.email AND du.date = ?
-       WHERE ds.spend_cents > 0`,
-    )
-    .all(targetDate, targetDate) as Array<{
-    email: string;
-    spend_cents: number;
-    name: string;
-    most_used_model: string;
-  }>;
+  const todaySpend = getDailySpendWithNames(targetDate);
 
   if (todaySpend.length < 5) return anomalies;
 

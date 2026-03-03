@@ -13,7 +13,7 @@ import {
   getPlanExhaustionStats,
   getModelEfficiency,
   getGroupsWithMembers,
-} from "@/lib/db";
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 

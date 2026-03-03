@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getFullDashboard } from "@/lib/db";
+import { getFullDashboard } from "@/lib/data";
 import { DashboardClient } from "./dashboard-client";
 
 export const dynamic = "force-dynamic";

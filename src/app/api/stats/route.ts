@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFullDashboard } from "@/lib/db";
+import { getFullDashboard } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 

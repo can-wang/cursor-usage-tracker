@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import type { FullDashboard } from "@/lib/db";
+import type { FullDashboard } from "@/lib/data";
 import { SpendBarChart } from "@/components/charts/spend-bar-chart";
 import { DailySpendChart } from "@/components/charts/daily-spend-chart";
 import { SpendTrendChart } from "@/components/charts/spend-trend-chart";

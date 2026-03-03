@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTeamDailySpend } from "@/lib/db";
+import { getTeamDailySpend } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 

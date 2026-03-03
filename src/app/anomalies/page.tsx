@@ -1,4 +1,4 @@
-import { getAnomalyTimeline } from "@/lib/db";
+import { getAnomalyTimeline } from "@/lib/data";
 import { AnomaliesClient } from "./anomalies-client";
 
 export const dynamic = "force-dynamic";

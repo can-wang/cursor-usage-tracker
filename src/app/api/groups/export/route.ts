@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGroupsWithMembers } from "@/lib/db";
+import { getGroupsWithMembers } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 

@@ -19,8 +19,20 @@ import type {
   AnalyticsClientVersionsEntry,
   AnalyticsCommandsEntry,
   AnalyticsPlansEntry,
+} from "../types";
+import { DEFAULT_CONFIG } from "../types";
+import type {
+  UsageBadge,
+  SpendBadge,
+  ContextBadge,
+  AdoptionBadge,
+  RankedUser,
+  DashboardStats,
+  FullDashboard,
+  ModelEfficiency,
+  UserContextMetrics,
+  CycleSummaryData,
 } from "./types";
-import { DEFAULT_CONFIG } from "./types";
 
 const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "tracker.db");
 
@@ -836,74 +848,18 @@ export function logCollection(type: string, count: number, error?: string): void
   ).run(type, count, error ?? null);
 }
 
-export type UsageBadge = "power-user" | "deep-thinker" | "balanced" | "light-user";
-
-export type SpendBadge = "cost-efficient" | "premium-model" | "over-budget";
-
-export type ContextBadge = "long-sessions" | "short-sessions";
-export type AdoptionBadge =
-  | "ai-native"
-  | "high-adoption"
-  | "moderate-adoption"
-  | "low-adoption"
-  | "manual-coder";
-
-export interface RankedUser {
-  rank: number;
-  email: string;
-  name: string;
-  spend_cents: number;
-  included_spend_cents: number;
-  fast_premium_requests: number;
-  agent_requests: number;
-  lines_added: number;
-  most_used_model: string;
-  spend_rank: number;
-  activity_rank: number;
-  active_days: number;
-  tabs_accepted: number;
-  tabs_shown: number;
-  total_applies: number;
-  total_accepts: number;
-  avg_cache_read: number;
-  usage_badge: UsageBadge | null;
-  spend_badge: SpendBadge | null;
-  context_badge: ContextBadge | null;
-  adoption_badge: AdoptionBadge | null;
-}
-
-export interface DashboardStats {
-  totalMembers: number;
-  activeMembers: number;
-  totalSpendCents: number;
-  totalAgentRequests: number;
-  activeAnomalies: number;
-  cycleStart: string;
-  cycleEnd: string;
-  cycleDays: number;
-  dailyTeamActivity: Array<{
-    date: string;
-    total_agent_requests: number;
-    total_lines_added: number;
-    active_users: number;
-  }>;
-  rankedUsers: RankedUser[];
-}
-
-export interface FullDashboard {
-  days: number;
-  stats: DashboardStats;
-  modelCosts: Array<{
-    model: string;
-    users: number;
-    avg_spend: number;
-    total_spend: number;
-    total_reqs: number;
-    emails: string[];
-  }>;
-  teamDailySpend: Array<{ date: string; spend_cents: number }>;
-  dailySpendBreakdown: Array<{ date: string; email: string; name: string; spend_cents: number }>;
-}
+export type {
+  UsageBadge,
+  SpendBadge,
+  ContextBadge,
+  AdoptionBadge,
+  RankedUser,
+  DashboardStats,
+  FullDashboard,
+  ModelEfficiency,
+  UserContextMetrics,
+  CycleSummaryData,
+};
 
 export function getFullDashboard(days: number = 7): FullDashboard {
   const db = getDb();
@@ -2145,22 +2101,6 @@ export function getUsersByClientVersion(): Record<string, Array<{ email: string;
   return result;
 }
 
-export interface ModelEfficiency {
-  model: string;
-  users: number;
-  total_spend_usd: number;
-  total_reqs: number;
-  total_generated: number;
-  total_accepted: number;
-  total_wasted: number;
-  precision_pct: number;
-  useful_lines_per_req: number;
-  wasted_lines_per_req: number;
-  rejection_rate: number;
-  cost_per_req: number;
-  cost_per_useful_line: number;
-}
-
 export function getModelEfficiency(emails?: string[]): ModelEfficiency[] {
   const db = getDb();
   const hasUE = (db.prepare("SELECT COUNT(*) as c FROM usage_events").get() as { c: number }).c > 0;
@@ -2327,17 +2267,6 @@ export function getUserUsageEventsSummary(
     overage_cost_cents: number;
     error_reqs: number;
   }>;
-}
-
-export interface UserContextMetrics {
-  avgCacheRead: number;
-  avgCacheWrite: number;
-  totalRequests: number;
-  teamAvgCacheRead: number;
-  teamMedianCacheRead: number;
-  contextRank: number;
-  totalRanked: number;
-  contextBadge: ContextBadge | null;
 }
 
 export function getUserContextMetrics(email: string, days: number = 30): UserContextMetrics | null {
@@ -2863,18 +2792,229 @@ export function getPlanExhaustionStats(emails?: string[]): {
   };
 }
 
-export interface CycleSummaryData {
-  cycleStart: string;
-  cycleEnd: string;
-  daysRemaining: number;
-  totalSpendDollars: number;
-  previousCycleSpendDollars: number | null;
-  totalMembers: number;
-  activeMembers: number;
-  unusedSeats: number;
-  planExhausted: { exhausted: number; totalActive: number };
-  topSpenders: Array<{ name: string; spendDollars: number }>;
-  adoptionTiers: { aiNative: number; high: number; moderate: number; low: number; manual: number };
+export function getLatestCycleSpenders(): Array<{
+  email: string;
+  name: string;
+  spend_cents: number;
+  included_spend_cents: number;
+  fast_premium_requests: number;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT email, name, spend_cents, included_spend_cents, fast_premium_requests
+       FROM spending WHERE cycle_start = (SELECT MAX(cycle_start) FROM spending)`,
+    )
+    .all() as Array<{
+    email: string;
+    name: string;
+    spend_cents: number;
+    included_spend_cents: number;
+    fast_premium_requests: number;
+  }>;
+}
+
+export function getActiveDailyUsage(date: string): Array<{
+  email: string;
+  agent_requests: number;
+  usage_based_reqs: number;
+  most_used_model: string;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT email, agent_requests, usage_based_reqs, most_used_model
+       FROM daily_usage
+       WHERE date = ? AND is_active = 1`,
+    )
+    .all(date) as Array<{
+    email: string;
+    agent_requests: number;
+    usage_based_reqs: number;
+    most_used_model: string;
+  }>;
+}
+
+export function getLatestCycleStart(): string | null {
+  const db = getDb();
+  const row = db.prepare("SELECT MAX(cycle_start) as cs FROM spending").get() as {
+    cs: string | null;
+  };
+  return row?.cs ?? null;
+}
+
+export function getPlanExhaustedUsers(cycleStart: string): Array<{
+  email: string;
+  name: string | null;
+  exhausted_on: string;
+  total_usage_reqs: number;
+  total_agent_reqs: number;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT du.email, m.name, MIN(du.date) as exhausted_on,
+         SUM(du.usage_based_reqs) as total_usage_reqs,
+         SUM(du.agent_requests) as total_agent_reqs
+       FROM daily_usage du
+       LEFT JOIN members m ON du.email = m.email
+       WHERE du.date >= ? AND du.usage_based_reqs > 0
+       GROUP BY du.email`,
+    )
+    .all(cycleStart) as Array<{
+    email: string;
+    name: string | null;
+    exhausted_on: string;
+    total_usage_reqs: number;
+    total_agent_reqs: number;
+  }>;
+}
+
+export function getTeamTotalSpendForCycle(): number {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(spend_cents), 0) as total FROM spending
+       WHERE cycle_start = (SELECT MAX(cycle_start) FROM spending)`,
+    )
+    .get() as { total: number };
+  return row.total;
+}
+
+export function getDailySpendWithNames(targetDate: string): Array<{
+  email: string;
+  spend_cents: number;
+  name: string;
+  most_used_model: string;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT ds.email, ds.spend_cents,
+              COALESCE(m.name, ds.email) as name,
+              COALESCE(du.most_used_model, '') as most_used_model
+       FROM (SELECT email, MAX(spend_cents) as spend_cents FROM daily_spend WHERE date = ? GROUP BY email) ds
+       LEFT JOIN members m ON ds.email = m.email
+       LEFT JOIN daily_usage du ON ds.email = du.email AND du.date = ?
+       WHERE ds.spend_cents > 0`,
+    )
+    .all(targetDate, targetDate) as Array<{
+    email: string;
+    spend_cents: number;
+    name: string;
+    most_used_model: string;
+  }>;
+}
+
+export function getLatestDailySpendDate(): string | null {
+  const db = getDb();
+  const row = db.prepare("SELECT MAX(date) as d FROM daily_spend").get() as {
+    d: string | null;
+  };
+  return row?.d ?? null;
+}
+
+export function getUserDailySpendHistory(
+  email: string,
+  beforeDate: string,
+  lookbackDays: number,
+): { avg_spend: number | null } {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT AVG(spend) as avg_spend FROM (
+         SELECT email, date, MAX(spend_cents) as spend
+         FROM daily_spend
+         WHERE email = ? AND date < ? AND date >= date(?, ?)
+         GROUP BY email, date
+       )`,
+    )
+    .get(email, beforeDate, beforeDate, `-${lookbackDays} days`) as {
+    avg_spend: number | null;
+  };
+}
+
+export function getCycleSpendWithModels(): Array<{
+  email: string;
+  name: string;
+  spend_cents: number;
+  fast_premium_requests: number;
+  most_used_model: string;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT s.email, s.name, s.spend_cents, s.fast_premium_requests,
+              COALESCE(du.most_used_model, '') as most_used_model
+       FROM spending s
+       LEFT JOIN (
+         SELECT email, most_used_model FROM daily_usage
+         WHERE date = (SELECT MAX(date) FROM daily_usage WHERE is_active = 1) AND is_active = 1
+       ) du ON s.email = du.email
+       WHERE s.cycle_start = (SELECT MAX(cycle_start) FROM spending)
+         AND s.spend_cents > 0`,
+    )
+    .all() as Array<{
+    email: string;
+    name: string;
+    spend_cents: number;
+    fast_premium_requests: number;
+    most_used_model: string;
+  }>;
+}
+
+export function getActiveMembers(): Array<{ email: string; user_id: string | null; name: string }> {
+  const db = getDb();
+  return db
+    .prepare("SELECT email, user_id, name FROM members WHERE is_removed = 0")
+    .all() as Array<{ email: string; user_id: string | null; name: string }>;
+}
+
+export function renameBillingGroup(groupId: string, name: string): void {
+  const db = getDb();
+  db.prepare("UPDATE billing_groups SET name = ? WHERE id = ?").run(name, groupId);
+}
+
+export function createBillingGroup(name: string): string {
+  const db = getDb();
+  const id = `local_${Date.now()}`;
+  db.prepare(
+    "INSERT INTO billing_groups (id, name, member_count, spend_cents) VALUES (?, ?, 0, 0)",
+  ).run(id, name);
+  return id;
+}
+
+export function assignMemberToGroup(email: string, targetGroupId: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM group_members WHERE email = ?").run(email);
+  db.prepare(
+    "INSERT INTO group_members (group_id, email, joined_at) VALUES (?, ?, datetime('now'))",
+  ).run(targetGroupId, email);
+  db.prepare(
+    "UPDATE billing_groups SET member_count = (SELECT COUNT(*) FROM group_members WHERE group_id = billing_groups.id)",
+  ).run();
+}
+
+export function createBillingGroupWithId(id: string, name: string): void {
+  const db = getDb();
+  db.prepare(
+    "INSERT INTO billing_groups (id, name, member_count, spend_cents) VALUES (?, ?, 0, 0)",
+  ).run(id, name);
+}
+
+export function reassignMemberToGroup(email: string, targetGroupId: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM group_members WHERE email = ?").run(email);
+  db.prepare(
+    "INSERT INTO group_members (group_id, email, joined_at) VALUES (?, ?, datetime('now'))",
+  ).run(targetGroupId, email);
+}
+
+export function refreshGroupMemberCounts(): void {
+  const db = getDb();
+  db.prepare(
+    "UPDATE billing_groups SET member_count = (SELECT COUNT(*) FROM group_members WHERE group_id = billing_groups.id)",
+  ).run();
 }
 
 export function getCycleSummaryData(): CycleSummaryData | null {

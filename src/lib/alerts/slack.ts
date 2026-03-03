@@ -1,5 +1,5 @@
 import type { Anomaly, Incident } from "../types";
-import type { CycleSummaryData } from "../db";
+import type { CycleSummaryData } from "../data";
 
 const SLACK_API_URL = "https://slack.com/api/chat.postMessage";
 const BATCH_THRESHOLD = 3;
