@@ -73,7 +73,7 @@ Developer uses Cursor → API collects data hourly → Engine detects anomaly �
 | Someone's daily spend spikes                          | `Alice: daily spend spiked to $214 (4.2x her 7-day avg of $51)` → Slack alert                            |
 | A user's cycle spend is far above the team            | `Bob: cycle spend $957 is 5.1x the team median ($188)` → Slack alert                                     |
 | A user is statistically far from the team             | `Bob: daily spend $214 is 3.2σ above team mean ($42)` → Slack alert                                      |
-| Someone switches to an expensive model                | `Bob: cost/request spiked to $1.45 (4.2x his avg of $0.34) — using opus-max` → Slack alert               |
+| Someone switches to an expensive model                | `Bob: cost/request spiked to $1.45 (4.2x his avg of $0.34), using opus-max` → Slack alert                |
 | A developer uses an expensive model when others don't | `Bob averaged $4.20/req on claude-opus-max (team median: $0.52 on sonnet)` → Model cost comparison table |
 
 Every alert includes who, what model, how much, and a link to their dashboard page so you can investigate immediately.
@@ -117,7 +117,7 @@ You don't need to remember to check the dashboard. The system comes to you.
 | **Plan exhaustion** | Daily, when users exceed plan    | "65/151 active users have exceeded their included plan this cycle"                  |
 | **Cycle summary**   | 3 days before billing cycle ends | Total spend, unused seats, top spenders, adoption breakdown, cycle-over-cycle trend |
 
-Anomaly alerts include severity, user, model, value vs threshold, and a direct link to the user's dashboard page. Cycle summaries tell you how many seats are going unused and who's driving cost — so you can act before the invoice, not after.
+Anomaly alerts include severity, user, model, value vs threshold, and a direct link to the user's dashboard page. Cycle summaries tell you how many seats are going unused and who's driving cost, so you can act before the invoice lands.
 
 Also supports **email alerts** via [Resend](https://resend.com) (one API key, no SMTP config).
 
@@ -143,7 +143,7 @@ Deploy your own instance in minutes. You'll need a [Cursor Enterprise](https://c
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ofershap/cursor-usage-tracker)
 
-> **Railway and Docker** options below. Want help setting this up for your team — deployment, threshold tuning, first spend analysis, and ongoing support? [Let's talk](https://linkedin.com/in/ofershap).
+> **Railway and Docker** options below. Want help setting this up for your team? Deployment, threshold tuning, first spend analysis, ongoing support. [Let's talk](https://linkedin.com/in/ofershap).
 
 ---
 
@@ -288,16 +288,16 @@ fly deploy
 # Dashboard at https://your-app.fly.dev
 ```
 
-Set up hourly collection by adding `DASHBOARD_URL` and `CRON_SECRET` as [GitHub Actions secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) — the included `.github/workflows/cron.yml` workflow triggers `/api/cron` every hour.
+Set up hourly collection by adding `DASHBOARD_URL` and `CRON_SECRET` as [GitHub Actions secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). The included `.github/workflows/cron.yml` workflow triggers `/api/cron` every hour.
 
 ### Other cloud platforms
 
 Any platform that supports Docker + persistent volumes works:
 
-- **[Render](https://render.com)** — use the deploy button above, or `render.yaml` in this repo
-- **[Railway](https://railway.app)** — create a project from this repo, attach a volume at `/app/data`
+- **[Render](https://render.com)** - use the deploy button above, or `render.yaml` in this repo
+- **[Railway](https://railway.app)** - create a project from this repo, attach a volume at `/app/data`
 
-> **Serverless platforms** (Vercel, AWS Lambda, etc.) require replacing SQLite with an external database. The data layer is abstracted behind `src/lib/data/` — swap the implementation to use Postgres, Supabase, PlanetScale, or any other database. See [Architecture](#architecture) for details.
+> **Serverless platforms** (Vercel, AWS Lambda, etc.) require replacing SQLite with an external database. The data layer is abstracted behind `src/lib/data/`. Swap the implementation to use Postgres, Supabase, PlanetScale, or any other database. See [Architecture](#architecture) for details.
 
 ---
 
@@ -317,7 +317,7 @@ flowchart TB
     D --> AL
 ```
 
-The data layer is abstracted behind `src/lib/data/` — SQLite is the default (zero-config), but you can swap the implementation for Postgres, Supabase, or any database that fits your infrastructure.
+The data layer is abstracted behind `src/lib/data/`. SQLite is the default (zero-config), but you can swap the implementation for Postgres, Supabase, or any database that fits your infrastructure.
 
 ---
 
@@ -346,11 +346,11 @@ The Settings page (`/settings`) is where you configure detection behavior and ma
 
 ### Detection Thresholds
 
-All anomaly detection parameters listed in [Configuration](#configuration) above are editable from the Settings page — static thresholds, z-score sensitivity, spend spike multipliers, and the expensive model detector. Set any value to 0 to disable that specific check.
+All anomaly detection parameters listed in [Configuration](#configuration) above are editable from the Settings page. Static thresholds, z-score sensitivity, spend spike multipliers, the expensive model detector. Set any value to 0 to disable that check.
 
 ### Billing Groups
 
-Billing groups let you organize team members by department, team, or any structure that fits your org. The Team Overview page includes a group filter dropdown — select a group to instantly scope all stats, charts, and the members table to that subset.
+Billing groups let you organize team members by department, team, or any structure that fits your org. The Team Overview page has a group filter dropdown. Select a group to scope all stats, charts, and the members table to that subset.
 
 From the Settings page you can:
 
@@ -368,7 +368,7 @@ For teams using [HiBob](https://www.hibob.com/) as their HR platform, the Settin
 
 1. Export a CSV from HiBob's People Directory (include Email, Department, Group, and Team columns)
 2. Upload it to the import modal
-3. Review the preview — see which members will be moved, which groups will be created, and who wasn't matched
+3. Review the preview: which members move, which groups get created, who wasn't matched
 4. Selectively approve or reject individual changes before applying
 
 The import builds a `Group > Team` hierarchy automatically. Small teams (fewer than 3 members) are merged into their parent group. Members not found in the CSV keep their current assignment.
@@ -408,7 +408,7 @@ When both are set, either match grants access. When neither is set, any Google a
 
 ### How It Works
 
-- Sessions use encrypted JWT cookies — no database tables needed
+- Sessions use encrypted JWT cookies, no database tables needed
 - The `/api/cron` endpoint is excluded from auth (it uses its own `CRON_SECRET`)
 - Sign-in page appears automatically when auth is enabled
 - User avatar and sign-out menu appear in the nav bar

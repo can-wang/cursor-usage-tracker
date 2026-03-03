@@ -171,7 +171,7 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
 
         <Section
           title="Expensive Model Detection"
-          description="Alert when a user's $/request jumps — catches switches to expensive models like max-thinking"
+          description="Alert when a user's $/request jumps. Catches switches to expensive models like max-thinking."
         >
           <Field
             label="Cost/req spike multiplier"
