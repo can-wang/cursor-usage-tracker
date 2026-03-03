@@ -6,4 +6,4 @@ alwaysApply: false
 
 # Feature Map Maintenance
 
-When adding a new user-facing feature (page, section, chart, badge, metric, setting, or API endpoint), update `FEATURES.md` to reflect the change. Keep entries short — one line per item, grouped under the correct page heading.
+When adding a new user-facing feature (page, section, chart, badge, metric, setting, or API endpoint), update `docs/FEATURES.md` to reflect the change. Keep entries short — one line per item, grouped under the correct page heading.

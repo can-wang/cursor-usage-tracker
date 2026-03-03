@@ -131,7 +131,7 @@ Also supports **email alerts** via [Resend](https://resend.com) (one API key, no
 | **Anomalies**      | Open incidents, MTTD/MTTI/MTTR metrics, full anomaly timeline                                                                                                       |
 | **Settings**       | Detection thresholds, expensive model alerts, billing group management, HiBob CSV import, group export/import                                                       |
 
-> For a detailed breakdown of every section, metric, badge, and chart, see [FEATURES.md](FEATURES.md).
+> For a detailed breakdown of every section, metric, badge, and chart, see [FEATURES.md](docs/FEATURES.md).
 
 ---
 
@@ -482,7 +482,7 @@ Rate limit: 20 requests/minute (Admin API), 100 requests/minute (Analytics API).
 
 This project handles sensitive usage and spending data, so security matters here more than most.
 
-- **Vulnerability reporting**: See [SECURITY.md](SECURITY.md) for the disclosure policy. Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/ofershap/cursor-usage-tracker/security/advisories/new), not public issues.
+- **Vulnerability reporting**: See [SECURITY.md](.github/SECURITY.md) for the disclosure policy. Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/ofershap/cursor-usage-tracker/security/advisories/new), not public issues.
 - **Automated scanning**: Every push and PR goes through [CodeQL](https://codeql.github.com/) (SQL injection, XSS, CSRF, etc.) and [Dependabot](https://docs.github.com/en/code-security/dependabot) for dependency vulnerabilities.
 - **OpenSSF Scorecard**: Continuously evaluated against [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/ofershap/cursor-usage-tracker) security benchmarks.
 - **OpenSSF Best Practices**: [Passing badge](https://www.bestpractices.dev/projects/11968) earned.
@@ -494,11 +494,11 @@ This project handles sensitive usage and spending data, so security matters here
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines. Bug reports, feature requests, docs improvements, and code are all welcome. Use [conventional commits](https://www.conventionalcommits.org/) and make sure CI is green before opening a PR.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup and guidelines. Bug reports, feature requests, docs improvements, and code are all welcome. Use [conventional commits](https://www.conventionalcommits.org/) and make sure CI is green before opening a PR.
 
 ## Code of Conduct
 
-This project uses the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+This project uses the [Contributor Covenant Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 ## Author
 
