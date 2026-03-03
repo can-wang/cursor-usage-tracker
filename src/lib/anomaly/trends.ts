@@ -4,6 +4,7 @@ import {
   getLatestDailySpendDate,
   getUserDailySpendHistory,
   getCycleSpendWithModels,
+  getUserCostPerRequest,
 } from "../data";
 
 const MIN_DAILY_SPEND_CENTS = 5000;
@@ -12,10 +13,23 @@ const MIN_CYCLE_MEDIAN_CENTS = 1000;
 export function detectTrendAnomalies(config: DetectionConfig): Anomaly[] {
   const anomalies: Anomaly[] = [];
   const now = new Date().toISOString();
-  const { spendSpikeMultiplier, spendSpikeLookbackDays, cycleOutlierMultiplier } = config.trends;
+  const {
+    spendSpikeMultiplier,
+    spendSpikeLookbackDays,
+    cycleOutlierMultiplier,
+    costPerReqSpikeMultiplier,
+    costPerReqMinSpendCents,
+  } = config.trends;
 
   detectSpendSpikes(anomalies, now, spendSpikeMultiplier, spendSpikeLookbackDays);
   detectCycleOutliers(anomalies, now, cycleOutlierMultiplier);
+  detectCostPerReqSpikes(
+    anomalies,
+    now,
+    costPerReqSpikeMultiplier,
+    costPerReqMinSpendCents,
+    spendSpikeLookbackDays,
+  );
 
   return anomalies;
 }
@@ -93,5 +107,46 @@ function detectCycleOutliers(anomalies: Anomaly[], now: string, outlierMultiplie
         diagnosisDelta: user.spend_cents - median,
       });
     }
+  }
+}
+
+function detectCostPerReqSpikes(
+  anomalies: Anomaly[],
+  now: string,
+  spikeMultiplier: number,
+  minSpendCents: number,
+  lookbackDays: number,
+): void {
+  if (spikeMultiplier <= 0) return;
+
+  const users = getUserCostPerRequest(lookbackDays);
+
+  for (const user of users) {
+    if (user.today_spend_cents < minSpendCents) continue;
+    if (!user.hist_avg_cost_per_req || user.hist_avg_cost_per_req <= 0) continue;
+    if (user.hist_days < 3) continue;
+
+    const ratio = user.today_cost_per_req / user.hist_avg_cost_per_req;
+    if (ratio <= spikeMultiplier) continue;
+
+    const todayCpr = (user.today_cost_per_req / 100).toFixed(2);
+    const histCpr = (user.hist_avg_cost_per_req / 100).toFixed(2);
+    const todaySpend = (user.today_spend_cents / 100).toFixed(2);
+
+    anomalies.push({
+      userEmail: user.email,
+      type: "trend",
+      severity: ratio > spikeMultiplier * 2 ? "critical" : "warning",
+      metric: "cost_per_req",
+      value: Math.round(user.today_cost_per_req),
+      threshold: Math.round(user.hist_avg_cost_per_req * spikeMultiplier),
+      message: `${user.name}: cost/request spiked to $${todayCpr} (${ratio.toFixed(1)}x their avg of $${histCpr}) — using ${user.today_top_model || "unknown"}, $${todaySpend} total today across ${user.today_reqs} reqs`,
+      detectedAt: now,
+      resolvedAt: null,
+      alertedAt: null,
+      diagnosisModel: user.today_top_model || null,
+      diagnosisKind: null,
+      diagnosisDelta: user.today_spend_cents - user.today_reqs * user.hist_avg_cost_per_req,
+    });
   }
 }

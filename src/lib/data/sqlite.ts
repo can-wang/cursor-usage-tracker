@@ -2934,6 +2934,79 @@ export function getUserDailySpendHistory(
   };
 }
 
+export function getUserCostPerRequest(
+  lookbackDays: number,
+): Array<{
+  email: string;
+  name: string;
+  today_spend_cents: number;
+  today_reqs: number;
+  today_cost_per_req: number;
+  today_top_model: string;
+  hist_avg_cost_per_req: number | null;
+  hist_days: number;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `WITH today_data AS (
+        SELECT ue.user_email as email,
+          COALESCE(m.name, ue.user_email) as name,
+          ROUND(SUM(ue.total_cents)) as spend_cents,
+          COUNT(*) as reqs,
+          ROUND(SUM(ue.total_cents) / COUNT(*), 2) as cost_per_req
+        FROM usage_events ue
+        LEFT JOIN members m ON ue.user_email = m.email
+        WHERE date(ue.timestamp/1000, 'unixepoch') = date('now')
+          AND ue.total_cents > 0
+        GROUP BY ue.user_email
+      ),
+      today_model AS (
+        SELECT user_email as email, model, SUM(total_cents) as model_spend
+        FROM usage_events
+        WHERE date(timestamp/1000, 'unixepoch') = date('now') AND total_cents > 0
+        GROUP BY user_email, model
+      ),
+      today_top AS (
+        SELECT email, model FROM today_model
+        WHERE (email, model_spend) IN (
+          SELECT email, MAX(model_spend) FROM today_model GROUP BY email
+        )
+      ),
+      hist_data AS (
+        SELECT user_email as email,
+          ROUND(SUM(total_cents) / COUNT(*), 2) as avg_cost_per_req,
+          COUNT(DISTINCT date(timestamp/1000, 'unixepoch')) as active_days
+        FROM usage_events
+        WHERE date(timestamp/1000, 'unixepoch') < date('now')
+          AND date(timestamp/1000, 'unixepoch') >= date('now', ?)
+          AND total_cents > 0
+        GROUP BY user_email
+        HAVING COUNT(*) >= 10
+      )
+      SELECT td.email, td.name,
+        td.spend_cents as today_spend_cents,
+        td.reqs as today_reqs,
+        td.cost_per_req as today_cost_per_req,
+        COALESCE(tt.model, '') as today_top_model,
+        hd.avg_cost_per_req as hist_avg_cost_per_req,
+        COALESCE(hd.active_days, 0) as hist_days
+      FROM today_data td
+      LEFT JOIN today_top tt ON td.email = tt.email
+      LEFT JOIN hist_data hd ON td.email = hd.email`,
+    )
+    .all(`-${lookbackDays} days`) as Array<{
+    email: string;
+    name: string;
+    today_spend_cents: number;
+    today_reqs: number;
+    today_cost_per_req: number;
+    today_top_model: string;
+    hist_avg_cost_per_req: number | null;
+    hist_days: number;
+  }>;
+}
+
 export function getCycleSpendWithModels(): Array<{
   email: string;
   name: string;

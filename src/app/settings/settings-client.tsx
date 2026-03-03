@@ -169,6 +169,51 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
           />
         </Section>
 
+        <Section
+          title="Expensive Model Detection"
+          description="Alert when a user's $/request jumps — catches switches to expensive models like max-thinking"
+        >
+          <Field
+            label="Cost/req spike multiplier"
+            value={config.trends.costPerReqSpikeMultiplier}
+            onChange={(v) =>
+              setConfig({
+                ...config,
+                trends: { ...config.trends, costPerReqSpikeMultiplier: v },
+              })
+            }
+            step={0.5}
+            hint="today $/req > N × user avg"
+          />
+          <Field
+            label="Min daily spend"
+            value={config.trends.costPerReqMinSpendCents}
+            onChange={(v) =>
+              setConfig({
+                ...config,
+                trends: { ...config.trends, costPerReqMinSpendCents: v },
+              })
+            }
+            suffix={
+              config.trends.costPerReqMinSpendCents > 0
+                ? `$${(config.trends.costPerReqMinSpendCents / 100).toFixed(0)}`
+                : undefined
+            }
+            hint={config.trends.costPerReqMinSpendCents === 0 ? "disabled" : "skip low spenders"}
+            unit="cents"
+          />
+          <div className="text-[10px] text-zinc-600 space-y-0.5 mt-1">
+            <p>
+              Compares today&apos;s average cost per request against the user&apos;s historical
+              average.
+            </p>
+            <p>
+              Requires at least 3 days of history and 10+ past requests. Set multiplier to 0 to
+              disable.
+            </p>
+          </div>
+        </Section>
+
         <Section title="Collection Schedule" description="How often to pull data from Cursor APIs">
           <Field
             label="Cron interval"

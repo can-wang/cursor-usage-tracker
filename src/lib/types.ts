@@ -341,7 +341,8 @@ export type AnomalyMetric =
   | "tokens"
   | "plan_exhausted"
   | "users_limited"
-  | "team_budget";
+  | "team_budget"
+  | "cost_per_req";
 
 export interface Anomaly {
   id?: number;
@@ -391,6 +392,8 @@ export interface DetectionConfig {
     spendSpikeMultiplier: number;
     spendSpikeLookbackDays: number;
     cycleOutlierMultiplier: number;
+    costPerReqSpikeMultiplier: number;
+    costPerReqMinSpendCents: number;
   };
   cronIntervalMinutes: number;
   enableInfoAnomalies: boolean;
@@ -409,6 +412,8 @@ export const DEFAULT_CONFIG: DetectionConfig = {
     spendSpikeMultiplier: 5,
     spendSpikeLookbackDays: 7,
     cycleOutlierMultiplier: 10,
+    costPerReqSpikeMultiplier: 3,
+    costPerReqMinSpendCents: 2000,
   },
   cronIntervalMinutes: 60,
   enableInfoAnomalies: false,

@@ -73,6 +73,7 @@ Developer uses Cursor → API collects data hourly → Engine detects anomaly �
 | Someone's daily spend spikes                          | `Alice: daily spend spiked to $214 (4.2x her 7-day avg of $51)` → Slack alert                            |
 | A user's cycle spend is far above the team            | `Bob: cycle spend $957 is 5.1x the team median ($188)` → Slack alert                                     |
 | A user is statistically far from the team             | `Bob: daily spend $214 is 3.2σ above team mean ($42)` → Slack alert                                      |
+| Someone switches to an expensive model                | `Bob: cost/request spiked to $1.45 (4.2x his avg of $0.34) — using opus-max` → Slack alert               |
 | A developer uses an expensive model when others don't | `Bob averaged $4.20/req on claude-opus-max (team median: $0.52 on sonnet)` → Model cost comparison table |
 
 Every alert includes who, what model, how much, and a link to their dashboard page so you can investigate immediately.
@@ -83,11 +84,12 @@ Every alert includes who, what model, how much, and a link to their dashboard pa
 
 ### Three-Layer Anomaly Detection
 
-| Layer          | Method        | What it catches                                                               |
-| -------------- | ------------- | ----------------------------------------------------------------------------- |
-| **Thresholds** | Static limits | Optional hard caps on spend, requests, or tokens (disabled by default)        |
-| **Z-Score**    | Statistical   | User daily spend 2.5+ standard deviations above team mean (active users only) |
-| **Trends**     | Spend-based   | Daily spend spikes vs personal average, cycle spend outliers vs team median   |
+| Layer               | Method        | What it catches                                                                        |
+| ------------------- | ------------- | -------------------------------------------------------------------------------------- |
+| **Thresholds**      | Static limits | Optional hard caps on spend, requests, or tokens (disabled by default)                 |
+| **Z-Score**         | Statistical   | User daily spend 2.5+ standard deviations above team mean (active users only)          |
+| **Trends**          | Spend-based   | Daily spend spikes vs personal average, cycle spend outliers vs team median            |
+| **Expensive Model** | Cost/request  | User's $/request jumps vs their own history (catches model switches like max-thinking) |
 
 ### Incident Lifecycle (MTTD / MTTI / MTTR)
 
@@ -127,7 +129,7 @@ Also supports **email alerts** via [Resend](https://resend.com) (one API key, no
 | **Insights**       | DAU chart, model adoption trends, model efficiency rankings (cost/precision), MCP tool usage, file extensions, client versions                                      |
 | **User Drilldown** | Per-user token timeline, model breakdown, feature usage, activity profile, anomaly history                                                                          |
 | **Anomalies**      | Open incidents, MTTD/MTTI/MTTR metrics, full anomaly timeline                                                                                                       |
-| **Settings**       | Detection thresholds, **billing group management** (rename, assign, create), **HiBob CSV import** with change preview                                               |
+| **Settings**       | Detection thresholds, expensive model alerts, billing group management, HiBob CSV import, group export/import                                                       |
 
 > For a detailed breakdown of every section, metric, badge, and chart, see [FEATURES.md](FEATURES.md).
 
@@ -295,7 +297,7 @@ Any platform that supports Docker + persistent volumes works:
 - **[Render](https://render.com)** — use the deploy button above, or `render.yaml` in this repo
 - **[Railway](https://railway.app)** — create a project from this repo, attach a volume at `/app/data`
 
-> **Note:** Vercel is not supported — SQLite requires a persistent filesystem that Vercel's serverless functions don't provide.
+> **Serverless platforms** (Vercel, AWS Lambda, etc.) require replacing SQLite with an external database. The data layer is abstracted behind `src/lib/data/` — swap the implementation to use Postgres, Supabase, PlanetScale, or any other database. See [Architecture](#architecture) for details.
 
 ---
 
@@ -305,7 +307,7 @@ Any platform that supports Docker + persistent volumes works:
 flowchart TB
     APIs["Cursor Enterprise APIs\n/teams/members · /teams/spend · /teams/daily-usage-data\n/teams/filtered-usage-events · /teams/groups · /analytics/team/*"]
     C["Collector (hourly)"]
-    DB[("SQLite (local)")]
+    DB[("Database\n(SQLite default, swappable)")]
     D["Detection Engine, 3 layers"]
     AL["Alerts: Slack / Email"]
     DA["Dashboard: Next.js"]
@@ -315,7 +317,7 @@ flowchart TB
     D --> AL
 ```
 
-**Zero external dependencies.** SQLite stores everything locally. No Postgres, no Redis, no cloud database. Clone, configure, run.
+The data layer is abstracted behind `src/lib/data/` — SQLite is the default (zero-config), but you can swap the implementation for Postgres, Supabase, or any database that fits your infrastructure.
 
 ---
 
@@ -323,55 +325,55 @@ flowchart TB
 
 All detection thresholds are configurable via the Settings page or the API:
 
-| Setting                  | Default | What it does                                                   |
-| ------------------------ | ------- | -------------------------------------------------------------- |
-| Max spend per cycle      | 0 (off) | Alert when a user exceeds this in a billing cycle              |
-| Max requests per day     | 0 (off) | Alert on excessive daily request count                         |
-| Max tokens per day       | 0 (off) | Alert on excessive daily token consumption                     |
-| Z-score multiplier       | 2.5     | How many standard deviations above mean to flag (spend + reqs) |
-| Z-score window           | 7 days  | Historical window for statistical comparison                   |
-| Spend spike multiplier   | 5.0x    | Alert when today's spend > N× user's personal daily average    |
-| Spend spike lookback     | 7 days  | How many days of history to compare against                    |
-| Cycle outlier multiplier | 10.0x   | Alert when cycle spend > N× team median (active users only)    |
+| Setting                   | Default | What it does                                                   |
+| ------------------------- | ------- | -------------------------------------------------------------- |
+| Max spend per cycle       | 0 (off) | Alert when a user exceeds this in a billing cycle              |
+| Max requests per day      | 0 (off) | Alert on excessive daily request count                         |
+| Max tokens per day        | 0 (off) | Alert on excessive daily token consumption                     |
+| Z-score multiplier        | 2.5     | How many standard deviations above mean to flag (spend + reqs) |
+| Z-score window            | 7 days  | Historical window for statistical comparison                   |
+| Spend spike multiplier    | 5.0x    | Alert when today's spend > N× user's personal daily average    |
+| Spend spike lookback      | 7 days  | How many days of history to compare against                    |
+| Cycle outlier multiplier  | 10.0x   | Alert when cycle spend > N× team median (active users only)    |
+| Cost/req spike multiplier | 3.0x    | Alert when today's $/request > N× user's historical average    |
+| Cost/req min daily spend  | $20     | Skip cost/req alerts for users below this daily spend          |
 
 ---
 
-<details>
-<summary><strong>Billing Groups: organize teams by department, group, or custom structure</strong></summary>
+## Settings
 
-Billing groups let you organize team members by department, team, or any structure that fits your org.
+The Settings page (`/settings`) is where you configure detection behavior and manage your team structure. Everything is persisted locally and takes effect on the next detection run.
 
-**Dashboard Filtering**
+### Detection Thresholds
 
-The Team Overview page includes a group filter dropdown next to the search bar. Select a group to instantly filter all stats, charts, and the members table to that subset. Groups are displayed in a hierarchical `Parent > Team` format.
+All anomaly detection parameters listed in [Configuration](#configuration) above are editable from the Settings page — static thresholds, z-score sensitivity, spend spike multipliers, and the expensive model detector. Set any value to 0 to disable that specific check.
 
-**Settings Page**
+### Billing Groups
+
+Billing groups let you organize team members by department, team, or any structure that fits your org. The Team Overview page includes a group filter dropdown — select a group to instantly scope all stats, charts, and the members table to that subset.
 
 From the Settings page you can:
 
 - **View** all groups with member counts and per-group spend
-- **Rename** groups to match your org structure
-- **Reassign** members between groups
+- **Rename** groups to match your org structure (displayed as `Parent > Team`)
+- **Reassign** individual members between groups
 - **Create** new groups manually
-- **Search** across all members to find who's in which group
+- **Search** across all members to find and reassign anyone
+- **Export** your current group mapping as a CSV backup
+- **Import** a previously exported CSV to restore or transfer mappings between environments
 
-</details>
+### HiBob Import
 
-<details>
-<summary><strong>HiBob Import: sync your org structure from HiBob's People Directory</strong></summary>
+For teams using [HiBob](https://www.hibob.com/) as their HR platform, the Settings page includes a dedicated **Import from HiBob** flow:
 
-For teams using [HiBob](https://www.hibob.com/) as their HR platform, the Settings page includes an **Import from HiBob** feature:
-
-1. Download a CSV export from HiBob's People Directory
-2. Upload it to the import modal in Settings
-3. Review the preview: see which members will be moved, which groups will be created, and which members weren't matched
+1. Export a CSV from HiBob's People Directory (include Email, Department, Group, and Team columns)
+2. Upload it to the import modal
+3. Review the preview — see which members will be moved, which groups will be created, and who wasn't matched
 4. Selectively approve or reject individual changes before applying
 
-The import uses HiBob's `Group` and `Team` columns (falling back to `Department`) to build a `Group > Team` hierarchy. Small teams (fewer than 3 members) are automatically consolidated into broader groups to avoid excessive granularity.
+The import builds a `Group > Team` hierarchy automatically. Small teams (fewer than 3 members) are merged into their parent group. Members not found in the CSV keep their current assignment.
 
 > The HiBob import updates your local billing groups only. It does not push changes back to HiBob or to Cursor's billing API.
-
-</details>
 
 ---
 
@@ -434,15 +436,15 @@ When both are set, either match grants access. When neither is set, any Google a
 
 ## Tech Stack
 
-| Component  | Technology                           |
-| ---------- | ------------------------------------ |
-| Framework  | Next.js (App Router)                 |
-| Language   | TypeScript (strict mode)             |
-| Database   | SQLite (better-sqlite3), zero config |
-| Charts     | Recharts                             |
-| Styling    | Tailwind CSS                         |
-| Testing    | Vitest                               |
-| Deployment | Docker (multi-stage)                 |
+| Component  | Technology                                                                                                                                                     |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | [![Next.js](https://img.shields.io/badge/Next.js-000?logo=nextdotjs&logoColor=white)](https://github.com/vercel/next.js) App Router                            |
+| Language   | [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://github.com/microsoft/TypeScript) strict mode           |
+| Database   | [![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)](https://github.com/WiseLibs/better-sqlite3) via better-sqlite3 (swappable) |
+| Charts     | [![Recharts](https://img.shields.io/badge/Recharts-22B5BF?logo=recharts&logoColor=white)](https://github.com/recharts/recharts)                                |
+| Styling    | [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](https://github.com/tailwindlabs/tailwindcss)              |
+| Testing    | [![Vitest](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=white)](https://github.com/vitest-dev/vitest)                                      |
+| Deployment | [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://github.com/docker) multi-stage build                               |
 
 ---
 
@@ -484,7 +486,7 @@ This project handles sensitive usage and spending data, so security matters here
 - **Automated scanning**: Every push and PR goes through [CodeQL](https://codeql.github.com/) (SQL injection, XSS, CSRF, etc.) and [Dependabot](https://docs.github.com/en/code-security/dependabot) for dependency vulnerabilities.
 - **OpenSSF Scorecard**: Continuously evaluated against [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/ofershap/cursor-usage-tracker) security benchmarks.
 - **OpenSSF Best Practices**: [Passing badge](https://www.bestpractices.dev/projects/11968) earned.
-- **Data stays local**: Everything is stored in a local SQLite file. Nothing leaves your infrastructure. No external databases, no cloud services, no telemetry.
+- **Data stays yours**: Everything is stored in your own infrastructure. No external services, no telemetry, no data leaving your network.
 - **Small dependency tree**: Fewer dependencies = smaller attack surface.
 - **Signed releases**: Automated via semantic-release with GitHub-verified provenance.
 
