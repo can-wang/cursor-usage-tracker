@@ -19,6 +19,8 @@ function formatValue(metric: string, value: number): string {
   switch (metric) {
     case "spend":
       return `$${(value / 100).toFixed(2)}`;
+    case "cost_per_req":
+      return `$${(value / 100).toFixed(2)}/req`;
     case "tokens":
       return `${(value / 1_000_000).toFixed(2)}M`;
     case "requests":

@@ -19,6 +19,7 @@ export function detectTrendAnomalies(config: DetectionConfig): Anomaly[] {
     cycleOutlierMultiplier,
     costPerReqSpikeMultiplier,
     costPerReqMinSpendCents,
+    costPerReqMinAbsoluteCents,
   } = config.trends;
 
   detectSpendSpikes(anomalies, now, spendSpikeMultiplier, spendSpikeLookbackDays);
@@ -28,6 +29,7 @@ export function detectTrendAnomalies(config: DetectionConfig): Anomaly[] {
     now,
     costPerReqSpikeMultiplier,
     costPerReqMinSpendCents,
+    costPerReqMinAbsoluteCents,
     spendSpikeLookbackDays,
   );
 
@@ -115,6 +117,7 @@ function detectCostPerReqSpikes(
   now: string,
   spikeMultiplier: number,
   minSpendCents: number,
+  minAbsoluteCents: number,
   lookbackDays: number,
 ): void {
   if (spikeMultiplier <= 0) return;
@@ -123,6 +126,7 @@ function detectCostPerReqSpikes(
 
   for (const user of users) {
     if (user.today_spend_cents < minSpendCents) continue;
+    if (minAbsoluteCents > 0 && user.today_cost_per_req < minAbsoluteCents) continue;
     if (!user.hist_avg_cost_per_req || user.hist_avg_cost_per_req <= 0) continue;
     if (user.hist_days < 3) continue;
 

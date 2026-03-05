@@ -202,6 +202,27 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
             hint={config.trends.costPerReqMinSpendCents === 0 ? "disabled" : "skip low spenders"}
             unit="cents"
           />
+          <Field
+            label="Min $/req to alert"
+            value={config.trends.costPerReqMinAbsoluteCents}
+            onChange={(v) =>
+              setConfig({
+                ...config,
+                trends: { ...config.trends, costPerReqMinAbsoluteCents: v },
+              })
+            }
+            suffix={
+              config.trends.costPerReqMinAbsoluteCents > 0
+                ? `$${(config.trends.costPerReqMinAbsoluteCents / 100).toFixed(0)}/req`
+                : undefined
+            }
+            hint={
+              config.trends.costPerReqMinAbsoluteCents === 0
+                ? "disabled"
+                : "skip unless $/req exceeds this"
+            }
+            unit="cents"
+          />
           <div className="text-[10px] text-zinc-600 space-y-0.5 mt-1">
             <p>
               Compares today&apos;s average cost per request against the user&apos;s historical

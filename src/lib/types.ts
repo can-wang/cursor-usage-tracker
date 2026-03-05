@@ -394,6 +394,7 @@ export interface DetectionConfig {
     cycleOutlierMultiplier: number;
     costPerReqSpikeMultiplier: number;
     costPerReqMinSpendCents: number;
+    costPerReqMinAbsoluteCents: number;
   };
   cronIntervalMinutes: number;
   enableInfoAnomalies: boolean;
@@ -414,6 +415,7 @@ export const DEFAULT_CONFIG: DetectionConfig = {
     cycleOutlierMultiplier: 10,
     costPerReqSpikeMultiplier: 3,
     costPerReqMinSpendCents: 2000,
+    costPerReqMinAbsoluteCents: 500,
   },
   cronIntervalMinutes: 60,
   enableInfoAnomalies: false,
