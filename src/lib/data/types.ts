@@ -28,6 +28,7 @@ export interface RankedUser {
   total_applies: number;
   total_accepts: number;
   avg_cache_read: number;
+  max_mode_pct: number;
   usage_badge: UsageBadge | null;
   spend_badge: SpendBadge | null;
   context_badge: ContextBadge | null;

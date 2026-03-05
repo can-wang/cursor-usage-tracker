@@ -948,9 +948,11 @@ export function getFullDashboard(days: number = 7): FullDashboard {
             GROUP BY user_email
           ),
           user_cache AS (
-            SELECT user_email as email, ROUND(AVG(cache_read_tokens)) as avg_cache_read
+            SELECT user_email as email,
+              ROUND(AVG(CASE WHEN cache_read_tokens > 0 THEN cache_read_tokens END)) as avg_cache_read,
+              ROUND(100.0 * SUM(CASE WHEN max_mode = 1 THEN 1 ELSE 0 END) / COUNT(*)) as max_mode_pct
             FROM usage_events
-            WHERE date(timestamp/1000, 'unixepoch') >= date('now', ?) AND cache_read_tokens > 0
+            WHERE date(timestamp/1000, 'unixepoch') >= date('now', ?)
             GROUP BY user_email
           ),
           activity AS (
@@ -980,6 +982,7 @@ export function getFullDashboard(days: number = 7): FullDashboard {
             COALESCE(a.total_applies, 0) as total_applies,
             COALESCE(a.total_accepts, 0) as total_accepts,
             COALESCE(uc.avg_cache_read, 0) as avg_cache_read,
+            COALESCE(uc.max_mode_pct, 0) as max_mode_pct,
             RANK() OVER (ORDER BY COALESCE(us.spend_cents, 0) DESC) as spend_rank,
             RANK() OVER (ORDER BY COALESCE(a.agent_requests, 0) DESC) as activity_rank
           FROM members m
@@ -1025,6 +1028,7 @@ export function getFullDashboard(days: number = 7): FullDashboard {
             COALESCE(a.total_applies, 0) as total_applies,
             COALESCE(a.total_accepts, 0) as total_accepts,
             0 as avg_cache_read,
+            0 as max_mode_pct,
             RANK() OVER (ORDER BY COALESCE(us.spend_cents, 0) DESC) as spend_rank,
             RANK() OVER (ORDER BY COALESCE(a.agent_requests, 0) DESC) as activity_rank
           FROM members m
@@ -1050,6 +1054,7 @@ export function getFullDashboard(days: number = 7): FullDashboard {
     total_applies: number;
     total_accepts: number;
     avg_cache_read: number;
+    max_mode_pct: number;
     spend_rank: number;
     activity_rank: number;
   }>;
@@ -1214,6 +1219,7 @@ function assignBadges(
     total_applies: number;
     total_accepts: number;
     avg_cache_read: number;
+    max_mode_pct: number;
     spend_rank: number;
     activity_rank: number;
   }>,
@@ -1261,7 +1267,7 @@ function assignBadges(
       usage_badge = "light-user";
     } else {
       const reqsPerDay = u.active_days > 0 ? u.agent_requests / u.active_days : 0;
-      const usesMax = isMaxModel(u.most_used_model);
+      const usesMax = u.max_mode_pct > 50 || isMaxModel(u.most_used_model);
 
       if (usesMax) {
         usage_badge = "deep-thinker";
@@ -1278,7 +1284,7 @@ function assignBadges(
 
       if (overBudget) {
         spend_badge = "over-budget";
-      } else if (isMaxModel(u.most_used_model) && medianCpr > 0 && cpr > medianCpr * 3) {
+      } else if ((u.max_mode_pct > 50 || isMaxModel(u.most_used_model)) && medianCpr > 0 && cpr > medianCpr * 3) {
         spend_badge = "premium-model";
       } else if (u.agent_requests >= p80Reqs && medianCpr > 0 && cpr <= medianCpr * 0.5) {
         spend_badge = "cost-efficient";
@@ -1362,6 +1368,14 @@ export function getUserBadges(
     )
     .get(email, dateFilter) as { spend_cents: number };
 
+  const maxModeRow = db
+    .prepare(
+      `SELECT ROUND(100.0 * SUM(CASE WHEN max_mode = 1 THEN 1 ELSE 0 END) / COUNT(*)) as pct
+       FROM usage_events WHERE user_email = ? AND date(timestamp/1000, 'unixepoch') >= date('now', ?)`,
+    )
+    .get(email, dateFilter) as { pct: number | null };
+  const userMaxModePct = maxModeRow?.pct ?? 0;
+
   const teamStats = db
     .prepare(
       `SELECT email, SUM(agent_requests) as reqs, COALESCE(us.spend, 0) as spend
@@ -1395,7 +1409,7 @@ export function getUserBadges(
     usage = "light-user";
   } else {
     const reqsPerDay = userRow.active_days > 0 ? userRow.agent_requests / userRow.active_days : 0;
-    const usesMax = isMaxModel(userRow.most_used_model);
+    const usesMax = userMaxModePct > 50 || isMaxModel(userRow.most_used_model);
     if (usesMax) usage = "deep-thinker";
     else if (reqsPerDay >= 80) usage = "power-user";
     else usage = null;
@@ -1406,7 +1420,7 @@ export function getUserBadges(
     const cpr = spendRow.spend_cents / userRow.agent_requests;
     if (spendRow.spend_cents > medianSpend * 5 && spendRow.spend_cents > 10000) {
       spend = "over-budget";
-    } else if (isMaxModel(userRow.most_used_model) && medianCpr > 0 && cpr > medianCpr * 3) {
+    } else if ((userMaxModePct > 50 || isMaxModel(userRow.most_used_model)) && medianCpr > 0 && cpr > medianCpr * 3) {
       spend = "premium-model";
     } else if (userRow.agent_requests >= p80Reqs && medianCpr > 0 && cpr <= medianCpr * 0.5) {
       spend = "cost-efficient";

@@ -467,7 +467,10 @@ export function MembersTable({
                       const color =
                         cpr > 5 ? "text-red-400" : cpr > 2 ? "text-amber-400" : "text-zinc-400";
                       return (
-                        <span className={color} title={`$${cpr.toFixed(2)} per request`}>
+                        <span
+                          className={color}
+                          title={`$${cpr.toFixed(2)} per request${row.max_mode_pct > 0 ? ` (${row.max_mode_pct}% max mode)` : ""}`}
+                        >
                           ${cpr.toFixed(2)}
                         </span>
                       );
