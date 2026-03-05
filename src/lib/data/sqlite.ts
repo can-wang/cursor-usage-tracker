@@ -3021,8 +3021,11 @@ export function getCycleSpendWithModels(): Array<{
               COALESCE(du.most_used_model, '') as most_used_model
        FROM spending s
        LEFT JOIN (
-         SELECT email, most_used_model FROM daily_usage
-         WHERE date = (SELECT MAX(date) FROM daily_usage WHERE is_active = 1) AND is_active = 1
+         SELECT d.email, d.most_used_model FROM daily_usage d
+         INNER JOIN (
+           SELECT email, MAX(date) as max_date FROM daily_usage WHERE is_active = 1 GROUP BY email
+         ) latest ON d.email = latest.email AND d.date = latest.max_date
+         WHERE d.is_active = 1
        ) du ON s.email = du.email
        WHERE s.cycle_start = (SELECT MAX(cycle_start) FROM spending)
          AND s.spend_cents > 0`,
