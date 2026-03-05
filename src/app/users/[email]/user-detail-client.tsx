@@ -43,6 +43,8 @@ interface UserStats {
     overage_reqs: number;
     overage_cost_cents: number;
     error_reqs: number;
+    max_mode_reqs: number;
+    avg_cache_read_tokens: number;
   }>;
   mcpSummary: Array<{ tool_name: string; server_name: string; total_usage: number }>;
   commandsSummary: Array<{ command_name: string; total_usage: number }>;
@@ -317,6 +319,7 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
                     <th className="text-right px-4 py-2 font-medium">$/Req</th>
                     <th className="text-right px-4 py-2 font-medium">Total</th>
                     <th className="text-left px-4 py-2 font-medium">Included in Plan vs Overage</th>
+                    <th className="text-right px-4 py-2 font-medium">Max Mode</th>
                     <th className="text-right px-4 py-2 font-medium">Errors</th>
                   </tr>
                 </thead>
@@ -369,6 +372,18 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
                               {r.overage_reqs > 0 ? `${Math.round(overagePct)}%` : ""}
                             </span>
                           </div>
+                        </td>
+                        <td className="text-right px-4 py-2 font-mono">
+                          {r.max_mode_reqs > 0 ? (
+                            <span
+                              className="text-amber-400/80"
+                              title={`${r.max_mode_reqs}/${r.requests} requests used max mode (avg ${Math.round(r.avg_cache_read_tokens / 1000).toLocaleString()}k cache tokens/req)`}
+                            >
+                              {Math.round((r.max_mode_reqs / r.requests) * 100)}%
+                            </span>
+                          ) : (
+                            <span className="text-zinc-700">—</span>
+                          )}
                         </td>
                         <td className="text-right px-4 py-2 font-mono">
                           {r.error_reqs > 0 ? (

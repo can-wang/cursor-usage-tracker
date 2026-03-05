@@ -136,6 +136,9 @@ function detectCostPerReqSpikes(
     const todayCpr = (user.today_cost_per_req / 100).toFixed(2);
     const histCpr = (user.hist_avg_cost_per_req / 100).toFixed(2);
     const todaySpend = (user.today_spend_cents / 100).toFixed(2);
+    const maxModePct =
+      user.today_reqs > 0 ? Math.round((user.today_max_mode_reqs / user.today_reqs) * 100) : 0;
+    const maxModeNote = maxModePct > 0 ? ` [${maxModePct}% max mode]` : "";
 
     anomalies.push({
       userEmail: user.email,
@@ -144,7 +147,7 @@ function detectCostPerReqSpikes(
       metric: "cost_per_req",
       value: Math.round(user.today_cost_per_req),
       threshold: Math.round(user.hist_avg_cost_per_req * spikeMultiplier),
-      message: `${user.name}: cost/request spiked to $${todayCpr} (${ratio.toFixed(1)}x their avg of $${histCpr}), using ${user.today_top_model || "unknown"}, $${todaySpend} total today across ${user.today_reqs} reqs`,
+      message: `${user.name}: cost/request spiked to $${todayCpr}/req (${ratio.toFixed(1)}x their avg of $${histCpr}/req), using ${user.today_top_model || "unknown"}${maxModeNote}, $${todaySpend} total today across ${user.today_reqs} reqs`,
       detectedAt: now,
       resolvedAt: null,
       alertedAt: null,

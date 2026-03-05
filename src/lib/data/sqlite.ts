@@ -2235,6 +2235,8 @@ export function getUserUsageEventsSummary(
   overage_reqs: number;
   overage_cost_cents: number;
   error_reqs: number;
+  max_mode_reqs: number;
+  avg_cache_read_tokens: number;
 }> {
   const db = getDb();
   return db
@@ -2248,7 +2250,9 @@ export function getUserUsageEventsSummary(
       SUM(CASE WHEN kind LIKE 'Included%' THEN total_cents ELSE 0 END) as plan_cost_cents,
       SUM(CASE WHEN kind = 'Usage-based' THEN 1 ELSE 0 END) as overage_reqs,
       SUM(CASE WHEN kind = 'Usage-based' THEN total_cents ELSE 0 END) as overage_cost_cents,
-      SUM(CASE WHEN kind LIKE 'Errored%' THEN 1 ELSE 0 END) as error_reqs
+      SUM(CASE WHEN kind LIKE 'Errored%' THEN 1 ELSE 0 END) as error_reqs,
+      SUM(CASE WHEN max_mode = 1 THEN 1 ELSE 0 END) as max_mode_reqs,
+      ROUND(AVG(cache_read_tokens)) as avg_cache_read_tokens
     FROM usage_events
     WHERE user_email = ? AND CAST(timestamp AS INTEGER) >= ?
     GROUP BY model
@@ -2266,6 +2270,8 @@ export function getUserUsageEventsSummary(
     overage_reqs: number;
     overage_cost_cents: number;
     error_reqs: number;
+    max_mode_reqs: number;
+    avg_cache_read_tokens: number;
   }>;
 }
 
@@ -2945,6 +2951,8 @@ export function getUserCostPerRequest(
   today_top_model: string;
   hist_avg_cost_per_req: number | null;
   hist_days: number;
+  today_max_mode_reqs: number;
+  today_avg_cache_read: number;
 }> {
   const db = getDb();
   return db
@@ -2954,7 +2962,9 @@ export function getUserCostPerRequest(
           COALESCE(m.name, ue.user_email) as name,
           ROUND(SUM(ue.total_cents)) as spend_cents,
           COUNT(*) as reqs,
-          ROUND(SUM(ue.total_cents) / COUNT(*), 2) as cost_per_req
+          ROUND(SUM(ue.total_cents) / COUNT(*), 2) as cost_per_req,
+          SUM(CASE WHEN ue.max_mode = 1 THEN 1 ELSE 0 END) as max_mode_reqs,
+          ROUND(AVG(ue.cache_read_tokens)) as avg_cache_read
         FROM usage_events ue
         LEFT JOIN members m ON ue.user_email = m.email
         WHERE date(ue.timestamp/1000, 'unixepoch') = date('now')
@@ -2990,7 +3000,9 @@ export function getUserCostPerRequest(
         td.cost_per_req as today_cost_per_req,
         COALESCE(tt.model, '') as today_top_model,
         hd.avg_cost_per_req as hist_avg_cost_per_req,
-        COALESCE(hd.active_days, 0) as hist_days
+        COALESCE(hd.active_days, 0) as hist_days,
+        td.max_mode_reqs as today_max_mode_reqs,
+        td.avg_cache_read as today_avg_cache_read
       FROM today_data td
       LEFT JOIN today_top tt ON td.email = tt.email
       LEFT JOIN hist_data hd ON td.email = hd.email`,
@@ -3004,6 +3016,8 @@ export function getUserCostPerRequest(
     today_top_model: string;
     hist_avg_cost_per_req: number | null;
     hist_days: number;
+    today_max_mode_reqs: number;
+    today_avg_cache_read: number;
   }>;
 }
 
