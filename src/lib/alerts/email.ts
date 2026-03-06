@@ -10,6 +10,7 @@ function getClient(): Resend | null {
 function formatValue(metric: string, value: number): string {
   switch (metric) {
     case "spend":
+    case "cycle_spend":
       return `$${(value / 100).toFixed(2)}`;
     case "cost_per_req":
       return `$${(value / 100).toFixed(2)}/req`;

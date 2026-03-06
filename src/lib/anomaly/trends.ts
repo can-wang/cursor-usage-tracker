@@ -5,10 +5,29 @@ import {
   getUserDailySpendHistory,
   getCycleSpendWithModels,
   getUserCostPerRequest,
+  getUserCostDrivers,
 } from "../data";
 
 const MIN_DAILY_SPEND_CENTS = 5000;
 const MIN_CYCLE_MEDIAN_CENTS = 1000;
+
+function buildCostDriverNote(email: string, date?: string): string {
+  const drivers = getUserCostDrivers(email, date);
+  if (!drivers) return "";
+
+  const parts: string[] = [];
+  if (drivers.thinking_pct > 0) {
+    const thinkingDollars = (drivers.thinking_spend_cents / 100).toFixed(0);
+    parts.push(`${drivers.thinking_pct}% thinking ($${thinkingDollars})`);
+  }
+  if (drivers.max_pct > 0) {
+    const maxDollars = (drivers.max_spend_cents / 100).toFixed(0);
+    parts.push(`${drivers.max_pct}% max-mode ($${maxDollars})`);
+  }
+
+  if (parts.length === 0) return "";
+  return ` · cost drivers: ${parts.join(", ")}`;
+}
 
 export function detectTrendAnomalies(config: DetectionConfig): Anomaly[] {
   const anomalies: Anomaly[] = [];
@@ -23,7 +42,9 @@ export function detectTrendAnomalies(config: DetectionConfig): Anomaly[] {
   } = config.trends;
 
   detectSpendSpikes(anomalies, now, spendSpikeMultiplier, spendSpikeLookbackDays);
-  detectCycleOutliers(anomalies, now, cycleOutlierMultiplier);
+  if (cycleOutlierMultiplier > 0) {
+    detectCycleOutliers(anomalies, now, cycleOutlierMultiplier);
+  }
   detectCostPerReqSpikes(
     anomalies,
     now,
@@ -58,6 +79,7 @@ function detectSpendSpikes(
     if (ratio > spikeMultiplier) {
       const todayDollars = (user.spend_cents / 100).toFixed(2);
       const avgDollars = (history.avg_spend / 100).toFixed(2);
+      const driverNote = buildCostDriverNote(user.email, targetDate);
       anomalies.push({
         userEmail: user.email,
         type: "trend",
@@ -65,7 +87,7 @@ function detectSpendSpikes(
         metric: "spend",
         value: user.spend_cents,
         threshold: history.avg_spend * spikeMultiplier,
-        message: `${user.name}: daily spend spiked to $${todayDollars} (${ratio.toFixed(1)}x their ${lookbackDays}-day avg of $${avgDollars}), model: ${user.most_used_model || "unknown"}`,
+        message: `${user.name}: daily spend spiked to $${todayDollars} (${ratio.toFixed(1)}x their ${lookbackDays}-day avg of $${avgDollars}), model: ${user.most_used_model || "unknown"}${driverNote}`,
         detectedAt: now,
         resolvedAt: null,
         alertedAt: null,
@@ -97,10 +119,10 @@ function detectCycleOutliers(anomalies: Anomaly[], now: string, outlierMultiplie
         userEmail: user.email,
         type: "trend",
         severity: ratio > outlierMultiplier * 3 ? "critical" : "warning",
-        metric: "spend",
+        metric: "cycle_spend",
         value: user.spend_cents,
         threshold: median * outlierMultiplier,
-        message: `${user.name}: cycle spend $${userDollars} is ${ratio.toFixed(1)}x the team median ($${medianDollars}), model: ${user.most_used_model || "unknown"}, ${user.fast_premium_requests} premium reqs`,
+        message: `${user.name}: cycle spend $${userDollars} is ${ratio.toFixed(1)}x the team median ($${medianDollars}), model: ${user.most_used_model || "unknown"}`,
         detectedAt: now,
         resolvedAt: null,
         alertedAt: null,
@@ -136,9 +158,7 @@ function detectCostPerReqSpikes(
     const todayCpr = (user.today_cost_per_req / 100).toFixed(2);
     const histCpr = (user.hist_avg_cost_per_req / 100).toFixed(2);
     const todaySpend = (user.today_spend_cents / 100).toFixed(2);
-    const maxModePct =
-      user.today_reqs > 0 ? Math.round((user.today_max_mode_reqs / user.today_reqs) * 100) : 0;
-    const maxModeNote = maxModePct > 0 ? ` [${maxModePct}% max mode]` : "";
+    const driverNote = buildCostDriverNote(user.email);
 
     anomalies.push({
       userEmail: user.email,
@@ -147,7 +167,7 @@ function detectCostPerReqSpikes(
       metric: "cost_per_req",
       value: Math.round(user.today_cost_per_req),
       threshold: Math.round(user.hist_avg_cost_per_req * spikeMultiplier),
-      message: `${user.name}: cost/request spiked to $${todayCpr}/req (${ratio.toFixed(1)}x their avg of $${histCpr}/req), using ${user.today_top_model || "unknown"}${maxModeNote}, $${todaySpend} total today across ${user.today_reqs} reqs`,
+      message: `${user.name}: cost/request spiked to $${todayCpr}/req (${ratio.toFixed(1)}x their avg of $${histCpr}/req), using ${user.today_top_model || "unknown"}, $${todaySpend} total today across ${user.today_reqs} reqs${driverNote}`,
       detectedAt: now,
       resolvedAt: null,
       alertedAt: null,

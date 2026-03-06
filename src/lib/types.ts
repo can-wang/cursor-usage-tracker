@@ -337,6 +337,7 @@ export type AnomalySeverity = "info" | "warning" | "critical";
 export type AnomalyType = "threshold" | "zscore" | "trend";
 export type AnomalyMetric =
   | "spend"
+  | "cycle_spend"
   | "requests"
   | "tokens"
   | "plan_exhausted"
@@ -412,7 +413,7 @@ export const DEFAULT_CONFIG: DetectionConfig = {
   trends: {
     spendSpikeMultiplier: 5,
     spendSpikeLookbackDays: 7,
-    cycleOutlierMultiplier: 10,
+    cycleOutlierMultiplier: 0,
     costPerReqSpikeMultiplier: 3,
     costPerReqMinSpendCents: 2000,
     costPerReqMinAbsoluteCents: 500,

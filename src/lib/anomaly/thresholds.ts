@@ -27,7 +27,7 @@ export function detectThresholdAnomalies(config: DetectionConfig): Anomaly[] {
         metric: "spend",
         value: s.spend_cents,
         threshold: config.thresholds.maxSpendCentsPerCycle,
-        message: `${s.name}: spend $${(s.spend_cents / 100).toFixed(2)} exceeds limit $${(config.thresholds.maxSpendCentsPerCycle / 100).toFixed(2)} (${s.fast_premium_requests} premium reqs)`,
+        message: `${s.name}: spend $${(s.spend_cents / 100).toFixed(2)} exceeds limit $${(config.thresholds.maxSpendCentsPerCycle / 100).toFixed(2)}`,
         detectedAt: now,
         resolvedAt: null,
         alertedAt: null,

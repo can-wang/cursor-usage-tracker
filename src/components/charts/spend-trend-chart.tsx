@@ -92,6 +92,10 @@ export function SpendTrendChart({ data, selectedDays, avgPerDay }: SpendTrendCha
       <div className="flex items-baseline gap-2 mb-2">
         <h3 className="text-xs font-medium text-zinc-400">Daily Spend</h3>
         <span className="text-[10px] text-zinc-600">{data.length} days of data</span>
+        <span className="text-[10px] text-blue-400/70 flex items-center gap-1">
+          <span className="inline-block w-3 border-t border-blue-400" />
+          spend
+        </span>
         {hasCostPerReq && (
           <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
             <span className="inline-block w-3 border-t border-dashed border-purple-400" />
@@ -144,7 +148,9 @@ export function SpendTrendChart({ data, selectedDays, avgPerDay }: SpendTrendCha
                     {!isInRange && <span className="text-zinc-600 ml-1">(context)</span>}
                     {isProvisional && <span className="text-amber-500 ml-1">(partial)</span>}
                   </div>
-                  <div className="font-mono font-bold text-sm">{fmtDollars(pt.spend)}</div>
+                  <div className="font-mono font-bold text-sm text-blue-400">
+                    {fmtDollars(pt.spend)}
+                  </div>
                   {pt.change !== 0 && (
                     <div style={{ color: changeColor }} className="font-mono text-[11px]">
                       {changeSign}

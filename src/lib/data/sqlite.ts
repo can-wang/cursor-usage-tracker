@@ -3067,6 +3067,52 @@ export function getCycleSpendWithModels(): Array<{
   }>;
 }
 
+export interface CostDriverSummary {
+  thinking_pct: number;
+  max_pct: number;
+  thinking_spend_cents: number;
+  max_spend_cents: number;
+  total_spend_cents: number;
+  top_model: string;
+}
+
+export function getUserCostDrivers(email: string, date?: string): CostDriverSummary | null {
+  const db = getDb();
+  const dateFilter = date ? `date(ue.timestamp/1000, 'unixepoch') = ?` : `date(ue.timestamp/1000, 'unixepoch') = date('now')`;
+  const params = date ? [email, date] : [email];
+  const row = db
+    .prepare(
+      `SELECT
+        ROUND(100.0 * SUM(CASE WHEN ue.model LIKE '%thinking%' THEN 1 ELSE 0 END) / COUNT(*)) as thinking_pct,
+        ROUND(100.0 * SUM(CASE WHEN ue.max_mode = 1 THEN 1 ELSE 0 END) / COUNT(*)) as max_pct,
+        ROUND(SUM(CASE WHEN ue.model LIKE '%thinking%' THEN ue.total_cents ELSE 0 END)) as thinking_spend_cents,
+        ROUND(SUM(CASE WHEN ue.max_mode = 1 THEN ue.total_cents ELSE 0 END)) as max_spend_cents,
+        ROUND(SUM(ue.total_cents)) as total_spend_cents
+      FROM usage_events ue
+      WHERE ue.user_email = ? AND ${dateFilter} AND ue.total_cents > 0`,
+    )
+    .get(...params) as { thinking_pct: number | null; max_pct: number | null; thinking_spend_cents: number; max_spend_cents: number; total_spend_cents: number } | undefined;
+
+  if (!row || !row.total_spend_cents) return null;
+
+  const topModel = db
+    .prepare(
+      `SELECT model, SUM(total_cents) as s FROM usage_events
+       WHERE user_email = ? AND ${dateFilter} AND total_cents > 0
+       GROUP BY model ORDER BY s DESC LIMIT 1`,
+    )
+    .get(...params) as { model: string } | undefined;
+
+  return {
+    thinking_pct: row.thinking_pct ?? 0,
+    max_pct: row.max_pct ?? 0,
+    thinking_spend_cents: row.thinking_spend_cents,
+    max_spend_cents: row.max_spend_cents,
+    total_spend_cents: row.total_spend_cents,
+    top_model: topModel?.model ?? "",
+  };
+}
+
 export function getActiveMembers(): Array<{ email: string; user_id: string | null; name: string }> {
   const db = getDb();
   return db
