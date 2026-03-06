@@ -53,11 +53,13 @@ Your company has 50+ developers on Cursor. Do you know who's spending $200/day o
 
 You're about to find out.
 
-![Cursor Usage Tracker dashboard showing team spend, anomaly detection alerts, and per-user AI cost breakdown](assets/demo.gif)
-
-<sub>Demo animation created with <a href="https://github.com/ofershap/remotion-readme-kit">remotion-readme-kit</a></sub>
-
-<p align="center"><a href="https://www.youtube.com/watch?v=DqPjFWGI57A">▶ Watch the full demo (90 seconds)</a></p>
+<p align="center">
+  <sub>Watch the full demo (90 seconds):</sub>
+  <br><br>
+  <a href="https://www.youtube.com/watch?v=DqPjFWGI57A">
+    <img src="assets/video-preview.gif" alt="Watch the full demo (90 seconds)" width="800">
+  </a>
+</p>
 
 It connects to Cursor's Enterprise APIs, collects usage data, and automatically detects anomalies across three layers. When something looks off, you get a Slack message or email within the hour, not next month.
 
@@ -77,6 +79,36 @@ Developer uses Cursor → API collects data hourly → Engine detects anomaly �
 | A developer uses an expensive model when others don't | `Bob averaged $4.20/req on claude-opus-max (team median: $0.52 on sonnet)` → Model cost comparison table |
 
 Every alert includes who, what model, how much, and a link to their dashboard page so you can investigate immediately.
+
+---
+
+<div align="center">
+<h3>Quiz Time: Can you guess which Cursor model costs the most? 🤔</h3>
+<p>Your developers see this list every day. Can <i>you</i> spot the expensive one?</p>
+<table>
+<tr><td align="center" height="12"></td></tr>
+<tr><td>&emsp; <code>claude-4.6-opus-high</code> &emsp;</td></tr>
+<tr><td>&emsp; <code>composer-1.5</code> &emsp;</td></tr>
+<tr><td>&emsp; <code>claude-4.6-opus-max-thinking-fast</code> &emsp;</td></tr>
+<tr><td>&emsp; <code>claude-4.5-opus-high</code> &emsp;</td></tr>
+<tr><td>&emsp; <code>claude-4.6-opus-max</code> &emsp;</td></tr>
+<tr><td align="center" height="12"></td></tr>
+</table>
+<details>
+<summary><b>&nbsp;&nbsp;Reveal the answer&nbsp;&nbsp;</b></summary>
+<br>
+<table>
+<tr><th>Model</th><th>Output $/1M tokens</th><th>Relative cost</th></tr>
+<tr><td><code>composer-1.5</code></td><td>$17.50</td><td><b>1x</b> (cheapest)</td></tr>
+<tr><td><code>claude-4.5-opus-high</code></td><td>$25</td><td>1.4x</td></tr>
+<tr><td><code>claude-4.6-opus-high</code></td><td>$25</td><td>1.4x</td></tr>
+<tr><td><code>claude-4.6-opus-max</code></td><td>$25 + 20% surcharge</td><td>~1.7x</td></tr>
+<tr><td><b><code>claude-4.6-opus-max-thinking-fast</code></b></td><td><b>$150 + 20% surcharge</b></td><td><b>~10x 🔥</b></td></tr>
+</table>
+<br>
+<p><b>"Fast" sounds cheap. It's the most expensive model Cursor offers.</b><br>Now imagine 200 developers picking from this dropdown without knowing.</p>
+</details>
+</div>
 
 ---
 
