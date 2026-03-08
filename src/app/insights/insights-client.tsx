@@ -105,6 +105,16 @@ interface PlanExhaustionData {
   }>;
 }
 
+interface RepoEntry {
+  repo_name: string;
+  commits: number;
+  total_lines: number;
+  tab_lines: number;
+  composer_lines: number;
+  non_ai_lines: number;
+  ai_pct: number;
+}
+
 interface InsightsData {
   dau: DAUEntry[];
   modelSummary: ModelSummary[];
@@ -118,6 +128,7 @@ interface InsightsData {
   versionUsers: VersionUsers;
   modelEfficiency: ModelEfficiencyEntry[];
   planExhaustion: PlanExhaustionData;
+  repoAttribution: RepoEntry[];
 }
 
 import { formatDateTick, formatDateLabel } from "@/lib/date-utils";
@@ -238,7 +249,6 @@ export function InsightsClient({
 
   const totalAgentLines = data.agentEdits.reduce((s, d) => s + d.lines_accepted, 0);
   const totalTabLines = data.tabs.reduce((s, d) => s + d.lines_accepted, 0);
-  const totalMessages = data.modelSummary.reduce((s, d) => s + d.total_messages, 0);
 
   const mergedCommands = useMemo(() => {
     const map = new Map<string, number>();
@@ -569,53 +579,88 @@ export function InsightsClient({
         </ExpandableCard>
       </div>
 
-      {/* Tables Row: Model Breakdown + File Extensions */}
+      {/* Tables Row: Repo Attribution + File Extensions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <ExpandableCard>
-          <ChartCard title={`Model Usage Breakdown (${days}d)`}>
-            <div className="overflow-y-auto max-h-[200px]">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-zinc-900">
-                  <tr className="text-zinc-500 border-b border-zinc-800">
-                    <th className="text-left py-1 font-medium">Model</th>
-                    <th className="text-right py-1 font-medium">Messages</th>
-                    <th className="text-right py-1 font-medium">Users</th>
-                    <th className="text-right py-1 font-medium">% of Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.modelSummary.map((row) => {
-                    const pct = totalMessages > 0 ? (row.total_messages / totalMessages) * 100 : 0;
-                    return (
-                      <tr
-                        key={row.model}
-                        className="border-b border-zinc-800/30 hover:bg-zinc-800/30"
-                      >
-                        <td
-                          className="py-1 text-zinc-300 font-mono cursor-default"
-                          title={row.model}
-                        >
-                          {shortModel(row.model)}
-                        </td>
-                        <td className="text-right py-1 font-mono">{fmt(row.total_messages)}</td>
-                        <td className="text-right py-1 text-zinc-400">{row.total_users}</td>
-                        <td className="text-right py-1">
-                          <div className="flex items-center justify-end gap-1">
-                            <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-blue-500 rounded-full"
-                                style={{ width: `${Math.min(pct, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-zinc-500 w-8 text-right">{pct.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <ChartCard title={`Repository Code Volume (${days}d)`}>
+            {data.repoAttribution?.length > 0 ? (
+              (() => {
+                const grandTotal = data.repoAttribution.reduce((s, r) => s + r.total_lines, 0) || 1;
+                return (
+                  <div className="overflow-y-auto" style={{ height: 200 }}>
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-zinc-900">
+                        <tr className="text-zinc-500 border-b border-zinc-800">
+                          <th
+                            className="text-left py-1 font-medium cursor-help"
+                            title="Repository tracked via Cursor Source Control commits"
+                          >
+                            Repository
+                          </th>
+                          <th
+                            className="text-right py-1 font-medium cursor-help"
+                            title="Total lines added across all commits in this repo"
+                          >
+                            Lines
+                          </th>
+                          <th
+                            className="text-right py-1 font-medium cursor-help"
+                            title="This repo's share of all lines across all repos"
+                          >
+                            % of Total
+                          </th>
+                          <th
+                            className="text-right py-1 font-medium cursor-help"
+                            title="Percentage of lines attributed to AI (tab completions + composer/agent). May undercount due to squash merges"
+                          >
+                            AI %
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.repoAttribution.slice(0, 10).map((row) => {
+                          const sharePct = ((row.total_lines / grandTotal) * 100).toFixed(1);
+                          const shortRepo = row.repo_name.includes("/")
+                            ? row.repo_name.split("/").slice(-1)[0]
+                            : row.repo_name;
+                          return (
+                            <tr
+                              key={row.repo_name}
+                              className="border-b border-zinc-800/30 hover:bg-zinc-800/30"
+                            >
+                              <td
+                                className="py-1 text-zinc-300 font-mono truncate max-w-[140px]"
+                                title={row.repo_name}
+                              >
+                                {shortRepo}
+                              </td>
+                              <td className="text-right py-1 font-mono">{fmt(row.total_lines)}</td>
+                              <td className="text-right py-1 text-zinc-400">{sharePct}%</td>
+                              <td className="text-right py-1">
+                                <span
+                                  className={
+                                    row.ai_pct >= 50 ? "text-emerald-400" : "text-zinc-400"
+                                  }
+                                >
+                                  {row.ai_pct}%
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <span className="text-[10px] text-zinc-600 block text-right mt-1 pr-1">
+                      via Cursor Source Control
+                    </span>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-zinc-500 text-xs">
+                No repo data yet. Commits through Cursor Source Control will appear here.
+              </div>
+            )}
           </ChartCard>
         </ExpandableCard>
 

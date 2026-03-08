@@ -155,13 +155,13 @@ Also supports **email alerts** via [Resend](https://resend.com) (one API key, no
 
 ### Web Dashboard
 
-| Page               | What you see                                                                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Team Overview**  | Stat cards, spend by user, daily spend trend, spend breakdown, members table with search/sort, **group filter dropdown**, billing cycle progress, time range picker |
-| **Insights**       | DAU chart, model adoption trends, model efficiency rankings (cost/precision), MCP tool usage, file extensions, client versions                                      |
-| **User Drilldown** | Per-user token timeline, model breakdown, feature usage, activity profile, anomaly history                                                                          |
-| **Anomalies**      | Open incidents, MTTD/MTTI/MTTR metrics, full anomaly timeline                                                                                                       |
-| **Settings**       | Detection thresholds, expensive model alerts, billing group management, HiBob CSV import, group export/import                                                       |
+| Page               | What you see                                                                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Team Overview**  | Stat cards, spend by user, daily spend trend, spend breakdown, members table with search/sort, **group filter dropdown**, billing cycle progress, time range picker              |
+| **Insights**       | DAU chart, model adoption trends, model efficiency rankings (cost/precision), repository code volume (lines, % of total, AI %), MCP tool usage, file extensions, client versions |
+| **User Drilldown** | Per-user token timeline, model breakdown, feature usage, repository breakdown, activity profile, anomaly history                                                                 |
+| **Anomalies**      | Open incidents, MTTD/MTTI/MTTR metrics, full anomaly timeline                                                                                                                    |
+| **Settings**       | Detection thresholds, expensive model alerts, billing group management, HiBob CSV import, group export/import                                                                    |
 
 > For a detailed breakdown of every section, metric, badge, and chart, see [FEATURES.md](docs/FEATURES.md).
 

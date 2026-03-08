@@ -44,6 +44,7 @@ export function getDb(): Database.Database {
     dbInstance.pragma("journal_mode = WAL");
     dbInstance.pragma("foreign_keys = ON");
     initSchema(dbInstance);
+    runMigrations(dbInstance);
   }
   return dbInstance;
 }
@@ -317,6 +318,7 @@ function initSchema(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS ai_code_commits (
       email TEXT NOT NULL,
       date TEXT NOT NULL,
+      repo_name TEXT NOT NULL DEFAULT '',
       commits INTEGER NOT NULL DEFAULT 0,
       total_lines_added INTEGER NOT NULL DEFAULT 0,
       total_lines_deleted INTEGER NOT NULL DEFAULT 0,
@@ -327,7 +329,7 @@ function initSchema(db: Database.Database): void {
       non_ai_lines_added INTEGER NOT NULL DEFAULT 0,
       non_ai_lines_deleted INTEGER NOT NULL DEFAULT 0,
       collected_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (email, date)
+      PRIMARY KEY (email, date, repo_name)
     );
 
     CREATE INDEX IF NOT EXISTS idx_ai_code_email ON ai_code_commits(email);
@@ -348,6 +350,47 @@ function initSchema(db: Database.Database): void {
       error TEXT
     );
   `);
+}
+
+function runMigrations(db: Database.Database): void {
+  const cols = db.pragma("table_info(ai_code_commits)") as Array<{ name: string }>;
+  const hasRepoName = cols.some((c) => c.name === "repo_name");
+  if (!hasRepoName) {
+    console.log("[migration] Adding repo_name to ai_code_commits");
+    db.exec(`
+      ALTER TABLE ai_code_commits RENAME TO ai_code_commits_old;
+      CREATE TABLE ai_code_commits (
+        email TEXT NOT NULL,
+        date TEXT NOT NULL,
+        repo_name TEXT NOT NULL DEFAULT '',
+        commits INTEGER NOT NULL DEFAULT 0,
+        total_lines_added INTEGER NOT NULL DEFAULT 0,
+        total_lines_deleted INTEGER NOT NULL DEFAULT 0,
+        tab_lines_added INTEGER NOT NULL DEFAULT 0,
+        tab_lines_deleted INTEGER NOT NULL DEFAULT 0,
+        composer_lines_added INTEGER NOT NULL DEFAULT 0,
+        composer_lines_deleted INTEGER NOT NULL DEFAULT 0,
+        non_ai_lines_added INTEGER NOT NULL DEFAULT 0,
+        non_ai_lines_deleted INTEGER NOT NULL DEFAULT 0,
+        collected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (email, date, repo_name)
+      );
+      INSERT INTO ai_code_commits (email, date, repo_name, commits, total_lines_added, total_lines_deleted,
+        tab_lines_added, tab_lines_deleted, composer_lines_added, composer_lines_deleted,
+        non_ai_lines_added, non_ai_lines_deleted, collected_at)
+        SELECT email, date, '', commits, total_lines_added, total_lines_deleted,
+          tab_lines_added, tab_lines_deleted, composer_lines_added, composer_lines_deleted,
+          non_ai_lines_added, non_ai_lines_deleted, collected_at
+        FROM ai_code_commits_old;
+      DROP TABLE ai_code_commits_old;
+      CREATE INDEX IF NOT EXISTS idx_ai_code_email ON ai_code_commits(email);
+      CREATE INDEX IF NOT EXISTS idx_ai_code_date ON ai_code_commits(date);
+      CREATE INDEX IF NOT EXISTS idx_ai_code_repo ON ai_code_commits(repo_name);
+    `);
+    console.log("[migration] ai_code_commits migrated successfully");
+  }
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_ai_code_repo ON ai_code_commits(repo_name)`);
 }
 
 export function setMetadata(key: string, value: string): void {
@@ -1548,6 +1591,7 @@ export function getUserStats(email: string, days: number = 7) {
   const contextMetrics = getUserContextMetrics(email, days);
   const badges = getUserBadges(email, days);
   const aiAdoption = getUserAIAdoption(email, days);
+  const repoBreakdown = getUserRepoBreakdown(email, days);
 
   const ranksRow = db
     .prepare(
@@ -1648,6 +1692,7 @@ export function getUserStats(email: string, days: number = 7) {
     badges,
     aiAdoption,
     planExhaustion,
+    repoBreakdown,
   };
 }
 
@@ -2452,11 +2497,11 @@ export function upsertAnalyticsUserCommands(
 export function upsertAICodeCommits(commits: AICodeCommit[]): void {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO ai_code_commits (email, date, commits, total_lines_added, total_lines_deleted,
+    INSERT INTO ai_code_commits (email, date, repo_name, commits, total_lines_added, total_lines_deleted,
       tab_lines_added, tab_lines_deleted, composer_lines_added, composer_lines_deleted,
       non_ai_lines_added, non_ai_lines_deleted)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(email, date) DO UPDATE SET
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(email, date, repo_name) DO UPDATE SET
       commits = commits + excluded.commits,
       total_lines_added = total_lines_added + excluded.total_lines_added,
       total_lines_deleted = total_lines_deleted + excluded.total_lines_deleted,
@@ -2474,6 +2519,7 @@ export function upsertAICodeCommits(commits: AICodeCommit[]): void {
     {
       email: string;
       date: string;
+      repo: string;
       commits: number;
       tla: number;
       tld: number;
@@ -2488,7 +2534,8 @@ export function upsertAICodeCommits(commits: AICodeCommit[]): void {
 
   for (const c of commits) {
     const date = c.commitTs.slice(0, 10);
-    const key = `${c.userEmail}:${date}`;
+    const repo = c.repoName || "";
+    const key = `${c.userEmail}:${date}:${repo}`;
     const existing = grouped.get(key);
     if (existing) {
       existing.commits++;
@@ -2504,6 +2551,7 @@ export function upsertAICodeCommits(commits: AICodeCommit[]): void {
       grouped.set(key, {
         email: c.userEmail,
         date,
+        repo,
         commits: 1,
         tla: c.totalLinesAdded,
         tld: c.totalLinesDeleted,
@@ -2518,15 +2566,16 @@ export function upsertAICodeCommits(commits: AICodeCommit[]): void {
   }
 
   const clearStmt = db.prepare(`
-    DELETE FROM ai_code_commits WHERE email = ? AND date = ?
+    DELETE FROM ai_code_commits WHERE email = ? AND date = ? AND repo_name = ?
   `);
 
   const tx = db.transaction(() => {
     for (const g of grouped.values()) {
-      clearStmt.run(g.email, g.date);
+      clearStmt.run(g.email, g.date, g.repo);
       stmt.run(
         g.email,
         g.date,
+        g.repo,
         g.commits,
         g.tla,
         g.tld,
@@ -2540,6 +2589,89 @@ export function upsertAICodeCommits(commits: AICodeCommit[]): void {
     }
   });
   tx();
+}
+
+export function getRepoAIAttribution(
+  days: number = 30,
+  emails?: string[],
+): Array<{
+  repo_name: string;
+  commits: number;
+  total_lines: number;
+  tab_lines: number;
+  composer_lines: number;
+  non_ai_lines: number;
+  ai_pct: number;
+}> {
+  const db = getDb();
+  const emailFilter = emails?.length ? `AND email IN (${emails.map(() => "?").join(",")})` : "";
+  const params = emails?.length ? [`-${days} days`, ...emails] : [`-${days} days`];
+  return db
+    .prepare(
+      `SELECT repo_name,
+        SUM(commits) as commits,
+        SUM(total_lines_added) as total_lines,
+        SUM(tab_lines_added) as tab_lines,
+        SUM(composer_lines_added) as composer_lines,
+        SUM(non_ai_lines_added) as non_ai_lines,
+        CASE WHEN SUM(total_lines_added) > 0
+          THEN ROUND(100.0 * (SUM(tab_lines_added) + SUM(composer_lines_added)) / SUM(total_lines_added))
+          ELSE 0 END as ai_pct
+      FROM ai_code_commits
+      WHERE date >= date('now', ?) AND repo_name != '' ${emailFilter}
+      GROUP BY repo_name
+      ORDER BY total_lines DESC
+      LIMIT 15`,
+    )
+    .all(...params) as Array<{
+    repo_name: string;
+    commits: number;
+    total_lines: number;
+    tab_lines: number;
+    composer_lines: number;
+    non_ai_lines: number;
+    ai_pct: number;
+  }>;
+}
+
+export function getUserRepoBreakdown(
+  email: string,
+  days: number = 30,
+): Array<{
+  repo_name: string;
+  commits: number;
+  total_lines: number;
+  tab_lines: number;
+  composer_lines: number;
+  non_ai_lines: number;
+  ai_pct: number;
+}> {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT repo_name,
+        SUM(commits) as commits,
+        SUM(total_lines_added) as total_lines,
+        SUM(tab_lines_added) as tab_lines,
+        SUM(composer_lines_added) as composer_lines,
+        SUM(non_ai_lines_added) as non_ai_lines,
+        CASE WHEN SUM(total_lines_added) > 0
+          THEN ROUND(100.0 * (SUM(tab_lines_added) + SUM(composer_lines_added)) / SUM(total_lines_added))
+          ELSE 0 END as ai_pct
+      FROM ai_code_commits
+      WHERE email = ? AND date >= date('now', ?) AND repo_name != ''
+      GROUP BY repo_name
+      ORDER BY total_lines DESC`,
+    )
+    .all(email, `-${days} days`) as Array<{
+    repo_name: string;
+    commits: number;
+    total_lines: number;
+    tab_lines: number;
+    composer_lines: number;
+    non_ai_lines: number;
+    ai_pct: number;
+  }>;
 }
 
 export function getUserAIAdoption(

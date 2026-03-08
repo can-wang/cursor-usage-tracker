@@ -67,8 +67,8 @@ Single cron endpoint `POST /api/cron` does both: collect → detect → alert in
 ## Dashboard Pages
 
 - `/` — Team overview: stat cards, model cost comparison table ($/request relative multipliers), daily spend trend (sourced from `usage_events` with `daily_spend` fallback, last 2 days marked provisional), spend breakdown by user, members table with search/sort, **group filter dropdown**, time range picker (24h/3d/7d/14d/30d), billing cycle progress
-- `/insights` — Analytics: DAU chart, model adoption, model efficiency rankings, MCP tool usage, file extensions, client versions
-- `/users/[email]` — Per-user detail: KPI cards (cycle spend, $/req, agent reqs, diffs accepted, team rank), spend trend chart, AI adoption card (tier, score bar, stat pills with tooltips), cost breakdown by model, tools & features (MCP tools + commands per user), model preferences, daily activity table, anomaly history
+- `/insights` — Analytics: DAU chart, model adoption, model efficiency rankings, repository code volume (lines, % of total, AI %), MCP tool usage, file extensions, client versions
+- `/users/[email]` — Per-user detail: KPI cards (cycle spend, $/req, agent reqs, diffs accepted, team rank), spend trend chart, AI adoption card (tier, score bar, stat pills with tooltips), cost breakdown by model, tools & features (MCP tools + commands per user), repositories (top 15 by lines, % of total, AI %), model preferences, daily activity table, anomaly history
 - `/anomalies` — MTTD/MTTI/MTTR metrics, open incidents (acknowledge/resolve), anomaly table
 - `/settings` — Detection thresholds, **billing group management** (rename, assign, create), **HiBob CSV import** with change preview
 

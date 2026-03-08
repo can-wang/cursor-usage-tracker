@@ -87,7 +87,7 @@ export function ExpandableCard({
     typeof children === "function" ? children(isExpanded) : children;
 
   return (
-    <div className="relative group/ec">
+    <div className="relative group/ec h-full">
       {render(false)}
       <button
         onClick={() => setExpanded(true)}

@@ -93,6 +93,15 @@ interface UserStats {
     usageBasedReqs: number;
     cycleDay: number;
   } | null;
+  repoBreakdown: Array<{
+    repo_name: string;
+    commits: number;
+    total_lines: number;
+    tab_lines: number;
+    composer_lines: number;
+    non_ai_lines: number;
+    ai_pct: number;
+  }>;
 }
 
 interface UserDetailClientProps {
@@ -471,6 +480,87 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
         </ExpandableCard>
       )}
 
+      {stats.repoBreakdown && stats.repoBreakdown.length > 0 && (
+        <ExpandableCard>
+          <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="text-xs font-medium text-zinc-400">Repositories</h3>
+              <span className="text-[10px] text-zinc-600">via Cursor Source Control</span>
+            </div>
+            <div className="overflow-x-auto max-h-[280px] overflow-y-auto">
+              {(() => {
+                const top = stats.repoBreakdown.slice(0, 15);
+                const grandTotal = stats.repoBreakdown.reduce((s, r) => s + r.total_lines, 0) || 1;
+                return (
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-zinc-900 z-10">
+                      <tr className="border-b border-zinc-800 text-zinc-500">
+                        <th
+                          className="text-left px-4 py-2 font-medium cursor-help"
+                          title="Repository tracked via Cursor Source Control commits"
+                        >
+                          Repo
+                        </th>
+                        <th
+                          className="text-right px-4 py-2 font-medium cursor-help"
+                          title="Total lines added across all commits in this repo"
+                        >
+                          Lines
+                        </th>
+                        <th
+                          className="text-right px-4 py-2 font-medium cursor-help"
+                          title="This repo's share of all lines across this user's repos"
+                        >
+                          % of Total
+                        </th>
+                        <th
+                          className="text-right px-4 py-2 font-medium cursor-help"
+                          title="Percentage of lines attributed to AI (tab completions + composer/agent). May undercount due to squash merges"
+                        >
+                          AI %
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {top.map((r) => {
+                        const sharePct = ((r.total_lines / grandTotal) * 100).toFixed(1);
+                        const shortRepo = r.repo_name.includes("/")
+                          ? r.repo_name.split("/").slice(-1)[0]
+                          : r.repo_name;
+                        return (
+                          <tr
+                            key={r.repo_name}
+                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                          >
+                            <td
+                              className="px-4 py-1.5 text-zinc-300 font-mono truncate max-w-[180px]"
+                              title={r.repo_name}
+                            >
+                              {shortRepo}
+                            </td>
+                            <td className="text-right px-4 py-1.5 font-mono">
+                              {fmt(r.total_lines)}
+                            </td>
+                            <td className="text-right px-4 py-1.5 text-zinc-400">{sharePct}%</td>
+                            <td className="text-right px-4 py-1.5">
+                              <span
+                                className={r.ai_pct >= 50 ? "text-emerald-400" : "text-zinc-400"}
+                              >
+                                {r.ai_pct}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+          </div>
+        </ExpandableCard>
+      )}
+
       {stats.contextMetrics && (
         <ExpandableCard>
           <ContextEfficiencyCard metrics={stats.contextMetrics} />
@@ -826,7 +916,7 @@ function AIAdoptionCard({ adoption }: { adoption: UserStats["aiAdoption"] }) {
   const reqsPerDay = Math.round(adoption.intensity);
 
   return (
-    <div className={`bg-zinc-900 rounded-lg border ${style.border} p-5 flex flex-col`}>
+    <div className={`bg-zinc-900 rounded-lg border ${style.border} p-5 flex flex-col h-full`}>
       <h3 className="text-xs font-medium text-zinc-400 mb-4">AI Adoption</h3>
 
       <div className="flex-1 flex flex-col justify-center">

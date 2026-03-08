@@ -13,6 +13,7 @@ import {
   getPlanExhaustionStats,
   getModelEfficiency,
   getGroupsWithMembers,
+  getRepoAIAttribution,
 } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export function GET(request: Request) {
       versionUsers: getUsersByClientVersion(),
       planExhaustion: getPlanExhaustionStats(emails),
       modelEfficiency: getModelEfficiency(emails),
+      repoAttribution: getRepoAIAttribution(days, emails),
     });
   } catch {
     return NextResponse.json({ error: "No analytics data yet" }, { status: 404 });

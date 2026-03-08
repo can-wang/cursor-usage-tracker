@@ -142,7 +142,7 @@ Investigated Feb 2026 by comparing real user data against git history and studyi
 - Plan mode adoption from `/analytics/team/plans` - plan mode usage by model. Stored in `analytics_plans` table.
 - Per-user MCP tool usage from `/analytics/by-user/mcp` - which MCP tools each user uses. Stored in `analytics_user_mcp` table.
 - Per-user command usage from `/analytics/by-user/commands` - which commands each user uses. Stored in `analytics_user_commands` table.
-- AI Code Tracking from `/analytics/ai-code/commits` - per-commit AI vs manual line attribution. Stored in `ai_code_commits` table (aggregated per user per day). Provides `tabLinesAdded`, `composerLinesAdded`, `nonAiLinesAdded` per commit. Used for AI Adoption % on user detail page. Only tracks commits made through Cursor's Source Control panel — terminal git commits are not captured.
+- AI Code Tracking from `/analytics/ai-code/commits` - per-commit AI vs manual line attribution. Stored in `ai_code_commits` table (aggregated per user per day per repo). Primary key is `(email, date, repo_name)`. Provides `tabLinesAdded`, `composerLinesAdded`, `nonAiLinesAdded` per commit. Used for repository code volume on insights page and per-user repo breakdown. Note: tab/composer/nonAI breakdown is unreliable (see limitations above) — only total lines and AI % are shown in the UI. Only tracks commits made through Cursor's Source Control panel — terminal git commits are not captured.
 
 ### Not Currently Collected (but available)
 - Per-user breakdowns from `/analytics/by-user/*` endpoints for: agent-edits, tabs, models, plans, ask-mode, client-versions, top-file-extensions (we collect mcp and commands per-user, but not these others)

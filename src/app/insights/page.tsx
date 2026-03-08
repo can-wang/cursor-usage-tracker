@@ -12,6 +12,7 @@ import {
   getModelEfficiency,
   getPlanExhaustionStats,
   getGroupsWithMembers,
+  getRepoAIAttribution,
 } from "@/lib/data";
 import { InsightsClient } from "./insights-client";
 
@@ -32,6 +33,7 @@ export default function InsightsPage() {
       versionUsers: getUsersByClientVersion(),
       modelEfficiency: getModelEfficiency(),
       planExhaustion: getPlanExhaustionStats(),
+      repoAttribution: getRepoAIAttribution(30),
     };
 
     const groups = getGroupsWithMembers();
