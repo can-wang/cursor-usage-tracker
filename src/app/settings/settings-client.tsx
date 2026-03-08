@@ -248,6 +248,37 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
           </div>
         </Section>
 
+        <Section
+          title="Plan Exhaustion Alerts"
+          description="Notify when users exceed their included plan allowance"
+        >
+          <Toggle
+            label="Enable plan exhaustion alerts"
+            description="Send Slack alerts when users exceed their plan"
+            checked={config.planExhaustion?.enabled ?? true}
+            onChange={(v) =>
+              setConfig({
+                ...config,
+                planExhaustion: { ...config.planExhaustion, enabled: v },
+              })
+            }
+          />
+          {(config.planExhaustion?.enabled ?? true) && (
+            <Field
+              label="Min new users to alert"
+              value={config.planExhaustion?.minDeltaSinceLastAlert ?? 5}
+              onChange={(v) =>
+                setConfig({
+                  ...config,
+                  planExhaustion: { ...config.planExhaustion, minDeltaSinceLastAlert: v },
+                })
+              }
+              hint="skip alert unless N+ new users exhausted since last alert"
+              unit="users"
+            />
+          )}
+        </Section>
+
         <Section title="Alerting Behavior" description="Control which anomaly types are generated">
           <Toggle
             label="Info-level anomalies"

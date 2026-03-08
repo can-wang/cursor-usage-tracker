@@ -829,6 +829,7 @@ export function getConfig(): DetectionConfig {
     thresholds: { ...DEFAULT_CONFIG.thresholds, ...stored.thresholds },
     zscore: { ...DEFAULT_CONFIG.zscore, ...stored.zscore },
     trends: { ...DEFAULT_CONFIG.trends, ...stored.trends },
+    planExhaustion: { ...DEFAULT_CONFIG.planExhaustion, ...stored.planExhaustion },
     cronIntervalMinutes: stored.cronIntervalMinutes ?? DEFAULT_CONFIG.cronIntervalMinutes,
     enableInfoAnomalies: stored.enableInfoAnomalies ?? DEFAULT_CONFIG.enableInfoAnomalies,
   };

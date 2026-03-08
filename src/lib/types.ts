@@ -397,6 +397,10 @@ export interface DetectionConfig {
     costPerReqMinSpendCents: number;
     costPerReqMinAbsoluteCents: number;
   };
+  planExhaustion: {
+    enabled: boolean;
+    minDeltaSinceLastAlert: number;
+  };
   cronIntervalMinutes: number;
   enableInfoAnomalies: boolean;
 }
@@ -417,6 +421,10 @@ export const DEFAULT_CONFIG: DetectionConfig = {
     costPerReqSpikeMultiplier: 3,
     costPerReqMinSpendCents: 2000,
     costPerReqMinAbsoluteCents: 500,
+  },
+  planExhaustion: {
+    enabled: true,
+    minDeltaSinceLastAlert: 5,
   },
   cronIntervalMinutes: 60,
   enableInfoAnomalies: false,

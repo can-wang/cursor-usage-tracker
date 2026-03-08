@@ -4,7 +4,13 @@ import { runDetection } from "@/lib/anomaly/detector";
 import { processNewAnomalies } from "@/lib/incidents";
 import { sendAlerts } from "@/lib/alerts";
 import { sendPlanExhaustionAlert, sendCycleSummary } from "@/lib/alerts/slack";
-import { getMetadata, setMetadata, getPlanExhaustionStats, getCycleSummaryData } from "@/lib/data";
+import {
+  getMetadata,
+  setMetadata,
+  getPlanExhaustionStats,
+  getCycleSummaryData,
+  getConfig,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -59,30 +65,46 @@ export async function POST(request: Request) {
   }
 
   try {
-    const today = new Date().toISOString().split("T")[0] ?? "";
-    const lastExhaustionAlert = getMetadata("last_plan_exhaustion_alert");
-
-    if (lastExhaustionAlert !== today) {
+    const config = getConfig();
+    if (!config.planExhaustion.enabled) {
+      results.planExhaustionAlert = "disabled";
+    } else {
       const planStats = getPlanExhaustionStats();
-      if (planStats.summary.users_exhausted > 0) {
+      const currentCount = planStats.summary.users_exhausted;
+      const lastCountStr = getMetadata("last_plan_exhaustion_count");
+      const lastCountRaw = lastCountStr ? parseInt(lastCountStr, 10) : 0;
+      const lastCount = lastCountRaw > currentCount ? 0 : lastCountRaw;
+      const delta = currentCount - lastCount;
+      const minDelta = config.planExhaustion.minDeltaSinceLastAlert;
+
+      if (currentCount === 0) {
+        results.planExhaustionAlert = "none_exhausted";
+      } else if (lastCount === 0 || delta >= minDelta) {
+        const newUsers = lastCount === 0 ? planStats.users : planStats.users.slice(-delta);
+        const nameList = newUsers
+          .slice(0, 5)
+          .map((u) => u.name || u.email.split("@")[0])
+          .join(", ");
+        const moreCount = newUsers.length > 5 ? newUsers.length - 5 : 0;
+
         const sent = await sendPlanExhaustionAlert(
           {
-            totalPlanExhausted: planStats.summary.users_exhausted,
+            totalPlanExhausted: currentCount,
             totalActive: planStats.summary.total_active,
+            newSinceLastAlert: delta > 0 ? delta : currentCount,
+            newUserNames: nameList + (moreCount > 0 ? ` +${moreCount} more` : ""),
           },
           { dashboardUrl: process.env.DASHBOARD_URL },
         );
         if (sent) {
-          setMetadata("last_plan_exhaustion_alert", today);
+          setMetadata("last_plan_exhaustion_count", String(currentCount));
           results.planExhaustionAlert = "sent";
         } else {
           results.planExhaustionAlert = "failed";
         }
       } else {
-        results.planExhaustionAlert = "none_exhausted";
+        results.planExhaustionAlert = `skipped (delta ${delta} < min ${minDelta})`;
       }
-    } else {
-      results.planExhaustionAlert = "already_sent_today";
     }
   } catch (error) {
     results.planExhaustionAlert = {

@@ -15,22 +15,6 @@ function severityEmoji(severity: string): string {
   return severity === "critical" ? ":rotating_light:" : ":warning:";
 }
 
-function formatValue(metric: string, value: number): string {
-  switch (metric) {
-    case "spend":
-    case "cycle_spend":
-      return `$${(value / 100).toFixed(2)}`;
-    case "cost_per_req":
-      return `$${(value / 100).toFixed(2)}/req`;
-    case "tokens":
-      return `${(value / 1_000_000).toFixed(2)}M`;
-    case "requests":
-      return `${value.toFixed(0)}`;
-    default:
-      return `${value}`;
-  }
-}
-
 function buildAlertBlocks(
   anomaly: Anomaly,
   incident: Incident,
@@ -52,44 +36,14 @@ function buildAlertBlocks(
         text: `*${anomaly.message}*`,
       },
     },
-    {
-      type: "section",
-      fields: [
-        { type: "mrkdwn", text: `*User:*\n${anomaly.userEmail}` },
-        { type: "mrkdwn", text: `*Type:*\n${anomaly.type}` },
-        { type: "mrkdwn", text: `*Metric:*\n${anomaly.metric}` },
-        {
-          type: "mrkdwn",
-          text: `*Value:*\n${formatValue(anomaly.metric, anomaly.value)}`,
-        },
-        {
-          type: "mrkdwn",
-          text: `*Threshold:*\n${formatValue(anomaly.metric, anomaly.threshold)}`,
-        },
-        {
-          type: "mrkdwn",
-          text: `*Incident:*\n#${incident.id}`,
-        },
-      ],
-    },
   ];
-
-  if (anomaly.diagnosisModel) {
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*Primary model:* \`${anomaly.diagnosisModel}\``,
-      },
-    });
-  }
 
   if (dashboardUrl) {
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `<${dashboardUrl}/users/${encodeURIComponent(anomaly.userEmail)}|View user dashboard> · <${dashboardUrl}/anomalies|View all anomalies>`,
+        text: `<${dashboardUrl}/users/${encodeURIComponent(anomaly.userEmail)}|View user details> · <${dashboardUrl}/anomalies|All anomalies>`,
       },
     });
   }
@@ -99,7 +53,7 @@ function buildAlertBlocks(
     elements: [
       {
         type: "mrkdwn",
-        text: `Detected at ${anomaly.detectedAt} · cursor-usage-tracker`,
+        text: `Incident #${incident.id} · ${anomaly.detectedAt} · cursor-usage-tracker`,
       },
     ],
   });
@@ -225,13 +179,18 @@ export async function sendSlackAlert(
   }
 
   const blocks = buildAlertBlocks(anomaly, incident, options.dashboardUrl);
-  const text = `${severityEmoji(anomaly.severity)} ${anomaly.message} — ${anomaly.userEmail}`;
+  const text = `${severityEmoji(anomaly.severity)} ${anomaly.message}`;
 
   return postToSlack(token, channel, text, blocks);
 }
 
 export async function sendPlanExhaustionAlert(
-  summary: { totalPlanExhausted: number; totalActive: number },
+  summary: {
+    totalPlanExhausted: number;
+    totalActive: number;
+    newSinceLastAlert: number;
+    newUserNames: string;
+  },
   options: { dashboardUrl?: string } = {},
 ): Promise<boolean> {
   const token = process.env.SLACK_BOT_TOKEN;
@@ -243,6 +202,8 @@ export async function sendPlanExhaustionAlert(
     return false;
   }
 
+  const pct = Math.round((summary.totalPlanExhausted / summary.totalActive) * 100);
+
   const blocks: SlackBlock[] = [
     {
       type: "header",
@@ -252,7 +213,14 @@ export async function sendPlanExhaustionAlert(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${summary.totalPlanExhausted}/${summary.totalActive}* active users have exceeded their included plan this cycle`,
+        text: `*${summary.newSinceLastAlert} new users* exceeded their plan (${summary.totalPlanExhausted}/${summary.totalActive} total, ${pct}%)`,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*New:* ${summary.newUserNames}`,
       },
     },
   ];
@@ -274,7 +242,7 @@ export async function sendPlanExhaustionAlert(
   return postToSlack(
     token,
     channel,
-    `Cursor — ${summary.totalPlanExhausted} users exceeded plan`,
+    `Cursor — ${summary.newSinceLastAlert} new users exceeded plan (${summary.totalPlanExhausted} total)`,
     blocks,
   );
 }
