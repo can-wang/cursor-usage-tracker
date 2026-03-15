@@ -133,6 +133,7 @@ interface InsightsData {
 
 import { formatDateTick, formatDateLabel } from "@/lib/date-utils";
 import { ExpandableCard } from "@/components/expandable-card";
+import { PlanExhaustionRaceBanner } from "@/components/plan-exhaustion-race";
 
 interface GroupInfo {
   id: string;
@@ -343,11 +344,19 @@ export function InsightsClient({
         <MiniKpi label="MCP Tools" value={data.mcp.length.toString()} sub="unique tools" />
       </div>
 
-      {/* Plan Exhaustion (compact) */}
+      {/* Plan Exhaustion Race Banner + Detail */}
       {data.planExhaustion.summary.users_exhausted > 0 && (
-        <ExpandableCard>
-          {(exp) => <PlanExhaustionSection data={data.planExhaustion} expanded={exp} />}
-        </ExpandableCard>
+        <>
+          <PlanExhaustionRaceBanner
+            exhausted={data.planExhaustion.summary.users_exhausted}
+            total={data.planExhaustion.summary.total_active}
+            pctExhausted={data.planExhaustion.summary.pct_exhausted}
+            users={data.planExhaustion.users}
+          />
+          <ExpandableCard>
+            {(exp) => <PlanExhaustionSection data={data.planExhaustion} expanded={exp} />}
+          </ExpandableCard>
+        </>
       )}
 
       {/* Model Cost vs Value */}
