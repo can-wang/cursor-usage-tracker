@@ -5,6 +5,7 @@ import type {
   MemberSpend,
   SpendResponse,
   GroupsResponse,
+  FilteredUsageEvent,
   FilteredUsageEventsResponse,
   AICodeCommitsResponse,
   AnalyticsDAUResponse,
@@ -23,6 +24,50 @@ import type {
 interface CursorClientOptions {
   apiKey: string;
   baseUrl?: string;
+}
+
+function num(v: unknown, fallback = 0): number {
+  return typeof v === "number" && !Number.isNaN(v) ? v : fallback;
+}
+
+function str(raw: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = raw[k];
+    if (typeof v === "string" && v !== "") return v;
+    if (typeof v === "number" && !Number.isNaN(v)) return String(v);
+  }
+  return "";
+}
+
+function bool(v: unknown): boolean {
+  return v === true || v === 1 || v === "1";
+}
+
+function normalizeFilteredUsageEvent(raw: Record<string, unknown>): FilteredUsageEvent {
+  const tuRaw = raw.tokenUsage ?? raw.token_usage;
+  let tokenUsage: FilteredUsageEvent["tokenUsage"];
+  if (tuRaw && typeof tuRaw === "object") {
+    const t = tuRaw as Record<string, unknown>;
+    tokenUsage = {
+      inputTokens: num(t.inputTokens ?? t.input_tokens),
+      outputTokens: num(t.outputTokens ?? t.output_tokens),
+      cacheWriteTokens: num(t.cacheWriteTokens ?? t.cache_write_tokens),
+      cacheReadTokens: num(t.cacheReadTokens ?? t.cache_read_tokens),
+      totalCents: num(t.totalCents ?? t.total_cents),
+    };
+  }
+  return {
+    timestamp: str(raw, "timestamp"),
+    model: str(raw, "model"),
+    kind: str(raw, "kind", "kindLabel", "kind_label"),
+    maxMode: bool(raw.maxMode ?? raw.max_mode),
+    requestsCosts: num(raw.requestsCosts ?? raw.requests_costs),
+    isTokenBasedCall: bool(raw.isTokenBasedCall ?? raw.is_token_based_call),
+    tokenUsage,
+    userEmail: str(raw, "userEmail", "user_email", "email"),
+    isChargeable: Boolean(raw.isChargeable ?? raw.is_chargeable),
+    isHeadless: bool(raw.isHeadless ?? raw.is_headless),
+  };
 }
 
 export class CursorClient {
@@ -224,7 +269,7 @@ export class CursorClient {
     page?: number;
     pageSize?: number;
   }): Promise<FilteredUsageEventsResponse> {
-    return this.request<FilteredUsageEventsResponse>("/teams/filtered-usage-events", {
+    const data = await this.request<FilteredUsageEventsResponse>("/teams/filtered-usage-events", {
       method: "POST",
       body: {
         email: options.email,
@@ -234,6 +279,14 @@ export class CursorClient {
         pageSize: options.pageSize ?? 500,
       },
     });
+    const usageEvents = (data.usageEvents ?? []).map((row) =>
+      normalizeFilteredUsageEvent(
+        row && typeof row === "object" && !Array.isArray(row)
+          ? (row as unknown as Record<string, unknown>)
+          : {},
+      ),
+    );
+    return { ...data, usageEvents };
   }
 
   async getAICodeCommits(

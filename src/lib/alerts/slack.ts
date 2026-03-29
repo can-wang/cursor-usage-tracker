@@ -347,6 +347,57 @@ export async function sendCycleSummary(
   );
 }
 
+export async function sendCollectionErrorAlert(
+  errors: string[],
+  options: { dashboardUrl?: string } = {},
+): Promise<boolean> {
+  const token = process.env.SLACK_BOT_TOKEN;
+  const channel = process.env.SLACK_CHANNEL_ID;
+  if (!token || !channel) return false;
+
+  const errorList = errors
+    .slice(0, 10)
+    .map((e) => `• ${e}`)
+    .join("\n");
+
+  const blocks: SlackBlock[] = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: ":x: Cursor — Data Collection Errors",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${errors.length} error${errors.length > 1 ? "s" : ""}* during scheduled collection:\n${errorList}`,
+      },
+    },
+  ];
+
+  if (options.dashboardUrl) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `<${options.dashboardUrl}|View dashboard>` },
+    });
+  }
+
+  blocks.push({
+    type: "context",
+    elements: [{ type: "mrkdwn", text: `${new Date().toISOString()} · cursor-usage-tracker` }],
+  });
+
+  return postToSlack(
+    token,
+    channel,
+    `Cursor — ${errors.length} collection error${errors.length > 1 ? "s" : ""}: ${errors[0]}`,
+    blocks,
+  );
+}
+
 export async function sendSlackBatch(
   pairs: Array<{ anomaly: Anomaly; incident: Incident }>,
   options: { dashboardUrl?: string } = {},

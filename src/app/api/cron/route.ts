@@ -3,7 +3,11 @@ import { collectAll } from "@/lib/collector";
 import { runDetection } from "@/lib/anomaly/detector";
 import { processNewAnomalies } from "@/lib/incidents";
 import { sendAlerts } from "@/lib/alerts";
-import { sendPlanExhaustionAlert, sendCycleSummary } from "@/lib/alerts/slack";
+import {
+  sendPlanExhaustionAlert,
+  sendCycleSummary,
+  sendCollectionErrorAlert,
+} from "@/lib/alerts/slack";
 import {
   getMetadata,
   setMetadata,
@@ -30,10 +34,21 @@ export async function POST(request: Request) {
   try {
     const collectionResult = await collectAll();
     results.collection = collectionResult;
+
+    if (collectionResult.errors.length > 0) {
+      const sent = await sendCollectionErrorAlert(collectionResult.errors, {
+        dashboardUrl: process.env.DASHBOARD_URL,
+      });
+      results.collectionErrorAlert = sent ? "sent" : "skipped";
+    }
   } catch (error) {
-    results.collection = {
-      error: error instanceof Error ? error.message : String(error),
-    };
+    const msg = error instanceof Error ? error.message : String(error);
+    results.collection = { error: msg };
+
+    const sent = await sendCollectionErrorAlert([msg], {
+      dashboardUrl: process.env.DASHBOARD_URL,
+    });
+    results.collectionErrorAlert = sent ? "sent" : "skipped";
   }
 
   try {

@@ -3,6 +3,7 @@ node_modules
 .git
 data/*.db
 data/*.db-journal
+!data/mock.db
 coverage
 .env
 .env.local
