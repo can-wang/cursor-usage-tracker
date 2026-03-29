@@ -193,14 +193,23 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
   const currentSpend = stats.spending[0];
   const activityDays = stats.dailyActivity.length;
   const totalAgentRequests = stats.dailyActivity.reduce((sum, d) => sum + d.agent_requests, 0);
-  const totalSpendCents = stats.dailySpend.reduce((s, d) => s + d.spend_cents, 0);
-  const totalSpendDollars = totalSpendCents / 100;
+  const cycleStart = currentSpend?.cycle_start;
+  const cycleAgentRequests = cycleStart
+    ? stats.dailyActivity
+        .filter((d) => d.date >= cycleStart)
+        .reduce((sum, d) => sum + d.agent_requests, 0)
+    : totalAgentRequests;
+  const billedCycleCents = currentSpend?.spend_cents ?? 0;
+  const cycleSpendDollars = billedCycleCents / 100;
   const dollarsPerReq =
-    totalAgentRequests > 0 ? (totalSpendCents / totalAgentRequests / 100).toFixed(2) : null;
-  const dailyAvgSpend =
-    stats.dailySpend.length > 0 ? totalSpendDollars / stats.dailySpend.length : 0;
-  const cycleSpendDollars =
-    totalSpendDollars || (currentSpend ? currentSpend.spend_cents / 100 : 0);
+    cycleAgentRequests > 0 ? (billedCycleCents / cycleAgentRequests / 100).toFixed(2) : null;
+  const cycleDaysElapsed = cycleStart
+    ? Math.max(
+        1,
+        Math.ceil((Date.now() - new Date(`${cycleStart}T12:00:00Z`).getTime()) / 86_400_000),
+      )
+    : Math.max(1, stats.dailySpend.length);
+  const dailyAvgSpend = cycleSpendDollars / cycleDaysElapsed;
 
   const mergedDailyData = buildMergedDailyData(stats.dailySpend, stats.dailyActivity);
   const hasUsageEvents = stats.usageEventsSummary.length > 0;
@@ -297,6 +306,7 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <ExpandableCard>
           <SpendTrendChart
+            avgPerDay={dailyAvgSpend}
             data={stats.dailySpend.map((d) => {
               const activity = stats.dailyActivity.find((a) => a.date === d.date);
               return {
@@ -318,6 +328,9 @@ export function UserDetailClient({ email, stats }: UserDetailClientProps) {
           <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
             <div className="px-4 py-2.5 border-b border-zinc-800">
               <h3 className="text-xs font-medium text-zinc-400">Cost Breakdown</h3>
+              <p className="text-[10px] text-zinc-600 mt-0.5">
+                Dollar totals match billed cycle spend; split by model follows usage-event mix
+              </p>
             </div>
             <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
               <table className="w-full text-xs">

@@ -104,7 +104,7 @@ export function SpendTrendChart({ data, selectedDays, avgPerDay }: SpendTrendCha
         )}
         {provisionalStart && (
           <span className="text-[10px] text-amber-500/70 ml-auto">
-            Last {provisionalDays}d may be partial (API lag)
+            Last {provisionalDays}d may be partial · daily shape from events, totals match billing
           </span>
         )}
       </div>
