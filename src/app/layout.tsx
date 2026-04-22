@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { NavLinks } from "@/components/nav-links";
-import { UpgradeBanner } from "@/components/upgrade-banner";
 import { UserMenu } from "@/components/user-menu";
 import { auth, signOut } from "@/auth";
+import { withBasePath } from "@/lib/paths";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Cursor Usage Tracker",
   description: "Monitor Cursor IDE usage, detect anomalies, and alert on spending spikes",
-  icons: { icon: "/favicon.png" },
+  icons: { icon: withBasePath("/favicon.png") },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,13 +24,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="flex items-center justify-between h-11">
               <div className="flex items-center gap-1">
                 <Link href="/" className="flex items-center gap-2 mr-4">
-                  <Image src="/logo.png" alt="" width={22} height={22} aria-hidden />
+                  <Image
+                    src={withBasePath("/logo.png")}
+                    alt=""
+                    width={22}
+                    height={22}
+                    aria-hidden
+                    unoptimized
+                  />
                   <span className="text-sm font-semibold text-white">Cursor Tracker</span>
                 </Link>
-                <NavLinks />
+                <NavLinks role={session?.user?.role} />
               </div>
               <div className="flex items-center gap-2">
-                <UpgradeBanner />
                 {session?.user && (
                   <UserMenu
                     name={session.user.name ?? session.user.email ?? "User"}

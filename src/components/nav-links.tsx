@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { UserRole } from "@/auth";
 
 const LINKS = [
   { href: "/", label: "Overview" },
   { href: "/insights", label: "Insights" },
   { href: "/anomalies", label: "Anomalies" },
-  { href: "/settings", label: "Settings" },
-];
+  { href: "/settings", label: "Settings", adminOnly: true },
+] as const;
 
-export function NavLinks() {
+export function NavLinks({ role }: { role?: UserRole }) {
   const pathname = usePathname();
+  const visible = LINKS.filter(
+    (link) => !("adminOnly" in link && link.adminOnly) || role !== "readonly",
+  );
 
   return (
     <>
-      {LINKS.map(({ href, label }) => {
+      {visible.map(({ href, label }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
           <Link

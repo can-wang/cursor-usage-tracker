@@ -1,16 +1,20 @@
 import type { Anomaly, Incident } from "../types";
 import { sendSlackBatch } from "./slack";
+import { sendTeamsBatch } from "./teams";
 import { sendEmailAlert } from "./email";
 import { markIncidentAlerted } from "../incidents";
 
 export async function sendAlerts(
   pairs: Array<{ anomaly: Anomaly; incident: Incident }>,
   options: { dashboardUrl?: string } = {},
-): Promise<{ slack: number; email: number; failed: number }> {
+): Promise<{ slack: number; teams: number; email: number; failed: number }> {
   let failed = 0;
 
   const slackSent = await sendSlackBatch(pairs, options);
   const slackOk = slackSent > 0;
+
+  const teamsSent = await sendTeamsBatch(pairs, options);
+  const teamsOk = teamsSent > 0;
 
   let emailSent = 0;
   const emailResults: boolean[] = [];
@@ -26,12 +30,12 @@ export async function sendAlerts(
     const pair = pairs[i];
     if (!pair) continue;
     const { anomaly, incident } = pair;
-    if (slackOk || emailResults[i]) {
+    if (slackOk || teamsOk || emailResults[i]) {
       markIncidentAlerted(incident.id ?? 0, anomaly.id ?? 0);
     } else {
       failed++;
     }
   }
 
-  return { slack: slackSent, email: emailSent, failed };
+  return { slack: slackSent, teams: teamsSent, email: emailSent, failed };
 }

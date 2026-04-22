@@ -18,6 +18,7 @@ import {
   LabelList,
 } from "recharts";
 import { shortModel } from "@/lib/format-utils";
+import { withBasePath } from "@/lib/paths";
 
 interface DAUEntry {
   date: string;
@@ -201,7 +202,7 @@ export function InsightsClient({
     try {
       const params = new URLSearchParams({ days: String(newDays) });
       if (group !== "all") params.set("group", group);
-      const res = await fetch(`/api/analytics?${params}`);
+      const res = await fetch(withBasePath(`/api/analytics?${params}`));
       if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
@@ -811,7 +812,7 @@ function ClientVersionsSection({
                             {v.users.map((u) => (
                               <a
                                 key={u.email}
-                                href={`/users/${encodeURIComponent(u.email)}`}
+                                href={withBasePath(`/users/${encodeURIComponent(u.email)}`)}
                                 className="block text-[11px] text-zinc-400 hover:text-blue-400 transition-colors"
                               >
                                 {u.name}
@@ -894,7 +895,7 @@ function PlanExhaustionSection({
           label="Exceeded"
           value={`${summary.users_exhausted}/${summary.total_active}`}
           sub={`${summary.pct_exhausted}% of active`}
-          href="/?exhaustion=1-999"
+          href={withBasePath("/?exhaustion=1-999")}
         />
         <MiniKpi label="Avg Days" value={summary.avg_days.toFixed(1)} sub="to exceed" />
         <MiniKpi label="Median" value={summary.median_days.toString()} sub="days" />
@@ -902,7 +903,7 @@ function PlanExhaustionSection({
         {buckets.map((b) => (
           <a
             key={b.label}
-            href={`/?exhaustion=${b.min}-${b.max}`}
+            href={withBasePath(`/?exhaustion=${b.min}-${b.max}`)}
             className="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 min-w-0 flex-1 hover:border-zinc-600 transition-colors cursor-pointer"
             title={`View users who exhausted plan on ${b.label}`}
           >
@@ -943,7 +944,7 @@ function PlanExhaustionSection({
                   <tr key={u.email} className="border-b border-zinc-800/30 hover:bg-zinc-800/30">
                     <td className="py-1">
                       <a
-                        href={`/users/${encodeURIComponent(u.email)}`}
+                        href={withBasePath(`/users/${encodeURIComponent(u.email)}`)}
                         className="text-zinc-300 hover:text-blue-400"
                       >
                         {u.name || u.email}

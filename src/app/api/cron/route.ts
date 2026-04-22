@@ -4,10 +4,15 @@ import { runDetection } from "@/lib/anomaly/detector";
 import { processNewAnomalies } from "@/lib/incidents";
 import { sendAlerts } from "@/lib/alerts";
 import {
-  sendPlanExhaustionAlert,
-  sendCycleSummary,
-  sendCollectionErrorAlert,
+  sendPlanExhaustionAlert as sendSlackPlanExhaustionAlert,
+  sendCycleSummary as sendSlackCycleSummary,
+  sendCollectionErrorAlert as sendSlackCollectionErrorAlert,
 } from "@/lib/alerts/slack";
+import {
+  sendPlanExhaustionAlert as sendTeamsPlanExhaustionAlert,
+  sendCycleSummary as sendTeamsCycleSummary,
+  sendCollectionErrorAlert as sendTeamsCollectionErrorAlert,
+} from "@/lib/alerts/teams";
 import {
   getMetadata,
   setMetadata,
@@ -36,19 +41,25 @@ export async function POST(request: Request) {
     results.collection = collectionResult;
 
     if (collectionResult.errors.length > 0) {
-      const sent = await sendCollectionErrorAlert(collectionResult.errors, {
-        dashboardUrl: process.env.DASHBOARD_URL,
-      });
-      results.collectionErrorAlert = sent ? "sent" : "skipped";
+      const [slackSent, teamsSent] = await Promise.all([
+        sendSlackCollectionErrorAlert(collectionResult.errors, {
+          dashboardUrl: process.env.DASHBOARD_URL,
+        }),
+        sendTeamsCollectionErrorAlert(collectionResult.errors, {
+          dashboardUrl: process.env.DASHBOARD_URL,
+        }),
+      ]);
+      results.collectionErrorAlert = { slack: slackSent, teams: teamsSent };
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     results.collection = { error: msg };
 
-    const sent = await sendCollectionErrorAlert([msg], {
-      dashboardUrl: process.env.DASHBOARD_URL,
-    });
-    results.collectionErrorAlert = sent ? "sent" : "skipped";
+    const [slackSent, teamsSent] = await Promise.all([
+      sendSlackCollectionErrorAlert([msg], { dashboardUrl: process.env.DASHBOARD_URL }),
+      sendTeamsCollectionErrorAlert([msg], { dashboardUrl: process.env.DASHBOARD_URL }),
+    ]);
+    results.collectionErrorAlert = { slack: slackSent, teams: teamsSent };
   }
 
   try {
@@ -102,18 +113,19 @@ export async function POST(request: Request) {
           .join(", ");
         const moreCount = newUsers.length > 5 ? newUsers.length - 5 : 0;
 
-        const sent = await sendPlanExhaustionAlert(
-          {
-            totalPlanExhausted: currentCount,
-            totalActive: planStats.summary.total_active,
-            newSinceLastAlert: delta > 0 ? delta : currentCount,
-            newUserNames: nameList + (moreCount > 0 ? ` +${moreCount} more` : ""),
-          },
-          { dashboardUrl: process.env.DASHBOARD_URL },
-        );
-        if (sent) {
+        const payload = {
+          totalPlanExhausted: currentCount,
+          totalActive: planStats.summary.total_active,
+          newSinceLastAlert: delta > 0 ? delta : currentCount,
+          newUserNames: nameList + (moreCount > 0 ? ` +${moreCount} more` : ""),
+        };
+        const [slackSent, teamsSent] = await Promise.all([
+          sendSlackPlanExhaustionAlert(payload, { dashboardUrl: process.env.DASHBOARD_URL }),
+          sendTeamsPlanExhaustionAlert(payload, { dashboardUrl: process.env.DASHBOARD_URL }),
+        ]);
+        if (slackSent || teamsSent) {
           setMetadata("last_plan_exhaustion_count", String(currentCount));
-          results.planExhaustionAlert = "sent";
+          results.planExhaustionAlert = { slack: slackSent, teams: teamsSent };
         } else {
           results.planExhaustionAlert = "failed";
         }
@@ -138,12 +150,13 @@ export async function POST(request: Request) {
       if (daysRemaining <= 3 && daysRemaining >= 0) {
         const summaryData = getCycleSummaryData();
         if (summaryData) {
-          const sent = await sendCycleSummary(summaryData, {
-            dashboardUrl: process.env.DASHBOARD_URL,
-          });
-          if (sent) {
+          const [slackSent, teamsSent] = await Promise.all([
+            sendSlackCycleSummary(summaryData, { dashboardUrl: process.env.DASHBOARD_URL }),
+            sendTeamsCycleSummary(summaryData, { dashboardUrl: process.env.DASHBOARD_URL }),
+          ]);
+          if (slackSent || teamsSent) {
             setMetadata("last_cycle_summary", cycleStart);
-            results.cycleSummary = "sent";
+            results.cycleSummary = { slack: slackSent, teams: teamsSent };
           } else {
             results.cycleSummary = "failed";
           }

@@ -10,6 +10,7 @@ import { MembersTable } from "@/components/dashboard/members-table";
 import Link from "next/link";
 import { shortModel } from "@/lib/format-utils";
 import { ExpandableCard } from "@/components/expandable-card";
+import { withBasePath } from "@/lib/paths";
 
 interface BillingGroupWithMembers {
   id: string;
@@ -84,7 +85,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const groupParam = searchParams.get("group");
   const exhaustionParam = searchParams.get("exhaustion");
   useEffect(() => {
-    fetch("/api/groups")
+    fetch(withBasePath("/api/groups"))
       .then((r) => r.json())
       .then((data: BillingGroupWithMembers[]) => {
         setGroups(data);
@@ -97,7 +98,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       const [minStr, maxStr] = exhaustionParam.split("-");
       const min = parseInt(minStr ?? "0", 10);
       const max = parseInt(maxStr ?? "999", 10);
-      fetch("/api/analytics")
+      fetch(withBasePath("/api/analytics"))
         .then((r) => r.json())
         .then(
           (analytics: {
@@ -274,7 +275,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     localStorage.setItem("dashboard-days", String(newDays));
     setLoading(true);
     try {
-      const res = await fetch(`/api/stats?days=${newDays}`);
+      const res = await fetch(withBasePath(`/api/stats?days=${newDays}`));
       const newData: FullDashboard = await res.json();
       setData(newData);
     } finally {

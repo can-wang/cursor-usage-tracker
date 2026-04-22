@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { timeAgo } from "@/lib/date-utils";
 import type { Anomaly, Incident } from "@/lib/types";
+import { withBasePath } from "@/lib/paths";
 
 interface AnomalyTimeline {
   anomalies: Anomaly[];
@@ -65,7 +66,7 @@ export function AnomaliesClient({ timeline }: AnomaliesClientProps) {
   const filtered = filter === "open" ? openRows : filter === "resolved" ? resolvedRows : sorted;
 
   async function handleIncidentAction(incidentId: number, action: "acknowledge" | "resolve") {
-    await fetch(`/api/incidents/${incidentId}`, {
+    await fetch(withBasePath(`/api/incidents/${incidentId}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),

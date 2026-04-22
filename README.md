@@ -139,7 +139,7 @@ Anomaly Detected ──→ Alert Sent ──→ Acknowledged ──→ Resolved
 - **MTTI** (Mean Time to Identify): how fast a human acknowledges it
 - **MTTR** (Mean Time to Resolve): how fast it gets fixed
 
-### Proactive Slack Notifications
+### Proactive Slack / Microsoft Teams Notifications
 
 You don't need to remember to check the dashboard. The system comes to you.
 
@@ -151,7 +151,7 @@ You don't need to remember to check the dashboard. The system comes to you.
 
 Anomaly alerts include severity, user, model, value vs threshold, and a direct link to the user's dashboard page. Cycle summaries tell you how many seats are going unused and who's driving cost, so you can act before the invoice lands.
 
-Also supports **email alerts** via [Resend](https://resend.com) (one API key, no SMTP config).
+Alerts can be delivered to **Slack** (`chat.postMessage`), **Microsoft Teams** (Adaptive Card via a Power Automate webhook), and/or **email** via [Resend](https://resend.com). Any combination can run simultaneously — set only the env vars for the channels you want.
 
 ### Web Dashboard
 
@@ -221,6 +221,11 @@ CURSOR_ADMIN_API_KEY=your_admin_api_key
 # Alerting — Slack (at least one alerting channel recommended)
 SLACK_BOT_TOKEN=xoxb-your-bot-token          # bot token with chat:write scope
 SLACK_CHANNEL_ID=C0123456789                  # channel to post alerts to
+
+# Alerting — Microsoft Teams (optional; can run alongside Slack)
+# Create a Power Automate "Post to a channel when a webhook request is received"
+# workflow in Teams to get this URL.
+TEAMS_WEBHOOK_URL=
 
 # Dashboard URL (used in alert links)
 DASHBOARD_URL=http://localhost:3000
@@ -341,7 +346,7 @@ flowchart TB
     C["Collector (hourly)"]
     DB[("Database\n(SQLite default, swappable)")]
     D["Detection Engine, 3 layers"]
-    AL["Alerts: Slack / Email"]
+    AL["Alerts: Slack / Teams / Email"]
     DA["Dashboard: Next.js"]
 
     APIs --> C --> DB --> D
@@ -411,39 +416,40 @@ The import builds a `Group > Team` hierarchy automatically. Small teams (fewer t
 
 ## Authentication
 
-Authentication is **fully optional**. When no auth environment variables are set, the dashboard is open (the default behavior). Setting `AUTH_SECRET` enables Google OAuth sign-in.
+Authentication is **fully optional**. When `AUTH_SECRET` is not set, the dashboard stays open. Setting `AUTH_SECRET` enables a single-admin username/password login backed by Auth.js credentials sessions.
 
 ### Setup
 
-1. Create a [Google OAuth app](https://console.cloud.google.com/apis/credentials) with redirect URI:
-   - Local: `http://localhost:3000/api/auth/callback/google`
-   - Production: `https://your-domain.com/api/auth/callback/google`
-
-2. Add to your `.env`:
+1. Generate a session secret:
 
 ```bash
-AUTH_SECRET=$(openssl rand -base64 32)       # encryption key for sessions
-AUTH_GOOGLE_ID=your-client-id.apps.google... # Google OAuth client ID
-AUTH_GOOGLE_SECRET=GOCSPX-...               # Google OAuth client secret
-AUTH_TRUST_HOST=true                         # required behind a reverse proxy
-AUTH_URL=https://your-domain.com             # public URL (auto-detected locally)
+openssl rand -base64 32
 ```
 
-3. Optionally restrict access by domain or specific emails:
+2. Generate a salted password hash:
 
 ```bash
-AUTH_ALLOWED_DOMAIN=yourcompany.com          # only @yourcompany.com emails
-AUTH_ALLOWED_EMAILS=admin@example.com,cto@example.com  # or specific emails
+node -e 'const { randomBytes, scryptSync } = require("node:crypto"); const password = process.argv[1]; const salt = randomBytes(16); const hash = scryptSync(password, salt, 64); console.log(`${salt.toString("hex")}:${hash.toString("hex")}`);' "replace-with-your-password"
 ```
 
-When both are set, either match grants access. When neither is set, any Google account can sign in.
+3. Add to your `.env`:
+
+```bash
+AUTH_SECRET=replace-with-random-secret
+AUTH_ADMIN_USERNAME=admin
+AUTH_ADMIN_PASSWORD_HASH=replace-with-generated-salt-and-hash
+AUTH_TRUST_HOST=true             # required behind a reverse proxy
+AUTH_URL=https://your-domain.com # public URL (auto-detected locally)
+```
 
 ### How It Works
 
 - Sessions use encrypted JWT cookies, no database tables needed
+- Only one configured admin username can sign in
+- The password is verified against a salted scrypt hash stored in env vars
 - The `/api/cron` endpoint is excluded from auth (it uses its own `CRON_SECRET`)
 - Sign-in page appears automatically when auth is enabled
-- User avatar and sign-out menu appear in the nav bar
+- User menu and sign-out stay available in the nav bar
 
 ---
 

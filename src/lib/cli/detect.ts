@@ -16,7 +16,7 @@ async function main() {
 
     const alertResult = await sendAlerts(pairs);
     console.log(
-      `[detect] Alerts sent — Slack: ${alertResult.slack}, Email: ${alertResult.email}, Failed: ${alertResult.failed}`,
+      `[detect] Alerts sent — Slack: ${alertResult.slack}, Teams: ${alertResult.teams}, Email: ${alertResult.email}, Failed: ${alertResult.failed}`,
     );
   }
 }

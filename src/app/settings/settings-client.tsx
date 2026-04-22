@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { DetectionConfig } from "@/lib/types";
+import { withBasePath } from "@/lib/paths";
 
 interface MemberInfo {
   email: string;
@@ -29,7 +30,7 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
   const [budgetLoaded, setBudgetLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/settings/budget")
+    fetch(withBasePath("/api/settings/budget"))
       .then((r) => r.json())
       .then((data: { value: number }) => {
         setBudgetThreshold(data.value ?? 0);
@@ -42,12 +43,12 @@ export function SettingsClient({ config: initial }: SettingsClientProps) {
     setSaving(true);
     setSaved(false);
     await Promise.all([
-      fetch("/api/settings", {
+      fetch(withBasePath("/api/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       }),
-      fetch("/api/settings/budget", {
+      fetch(withBasePath("/api/settings/budget"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value: budgetThreshold }),
@@ -370,7 +371,7 @@ function BillingGroupsManager() {
   const [restoreCsvText, setRestoreCsvText] = useState("");
 
   const loadGroups = useCallback(() => {
-    fetch("/api/groups")
+    fetch(withBasePath("/api/groups"))
       .then((r) => r.json())
       .then((data: GroupData[]) => setGroups(data))
       .catch(() => {});
@@ -385,7 +386,7 @@ function BillingGroupsManager() {
     setCsvText(text);
     setImportBusy(true);
     try {
-      const res = await fetch("/api/groups/import", {
+      const res = await fetch(withBasePath("/api/groups/import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csv: text }),
@@ -407,7 +408,7 @@ function BillingGroupsManager() {
     if (!importPreview || !csvText) return;
     setImportBusy(true);
     try {
-      const res = await fetch("/api/groups/import", {
+      const res = await fetch(withBasePath("/api/groups/import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -439,7 +440,7 @@ function BillingGroupsManager() {
     setRestoreCsvText(text);
     setRestoreBusy(true);
     try {
-      const res = await fetch("/api/groups/backup-import", {
+      const res = await fetch(withBasePath("/api/groups/backup-import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csv: text }),
@@ -460,7 +461,7 @@ function BillingGroupsManager() {
     if (!restorePreview || !restoreCsvText) return;
     setRestoreBusy(true);
     try {
-      const res = await fetch("/api/groups/backup-import", {
+      const res = await fetch(withBasePath("/api/groups/backup-import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csv: restoreCsvText, apply: true }),
@@ -509,7 +510,7 @@ function BillingGroupsManager() {
 
   async function handleRename(groupId: string, name: string) {
     setBusy(true);
-    await fetch("/api/groups", {
+    await fetch(withBasePath("/api/groups"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "rename", groupId, name }),
@@ -521,7 +522,7 @@ function BillingGroupsManager() {
 
   async function handleAssign(email: string, targetGroupId: string) {
     setBusy(true);
-    await fetch("/api/groups", {
+    await fetch(withBasePath("/api/groups"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "assign", email, targetGroupId }),
@@ -533,7 +534,7 @@ function BillingGroupsManager() {
   async function handleCreateGroup(name: string) {
     if (!name.trim()) return;
     setBusy(true);
-    await fetch("/api/groups", {
+    await fetch(withBasePath("/api/groups"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "create", name: name.trim() }),
@@ -1132,7 +1133,7 @@ function BillingGroupsManager() {
                       </div>
                     </div>
                     <a
-                      href="/api/groups/export"
+                      href={withBasePath("/api/groups/export")}
                       download
                       className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-medium transition-colors"
                     >

@@ -19,6 +19,8 @@ services:
         sync: false
       - key: SLACK_CHANNEL_ID
         sync: false
+      - key: TEAMS_WEBHOOK_URL
+        sync: false
       - key: DASHBOARD_PASSWORD
         sync: false
       - key: NODE_ENV
