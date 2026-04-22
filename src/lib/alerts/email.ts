@@ -1,10 +1,11 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 import type { Anomaly, Incident } from "../types";
 
-function getClient(): Resend | null {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
-  return new Resend(key);
+function configureClient(): boolean {
+  const key = process.env.SENDGRID_API_KEY;
+  if (!key) return false;
+  sgMail.setApiKey(key);
+  return true;
 }
 
 function buildHtml(anomaly: Anomaly, incident: Incident, dashboardUrl?: string): string {
@@ -32,9 +33,8 @@ export async function sendEmailAlert(
   incident: Incident,
   options: { to?: string; dashboardUrl?: string } = {},
 ): Promise<boolean> {
-  const resend = getClient();
-  if (!resend) {
-    console.warn("[email] Skipping alert — missing RESEND_API_KEY");
+  if (!configureClient()) {
+    console.warn("[email] Skipping alert — missing SENDGRID_API_KEY");
     return false;
   }
 
@@ -44,18 +44,23 @@ export async function sendEmailAlert(
     return false;
   }
 
-  const from = process.env.RESEND_FROM ?? "Cursor Tracker <alerts@resend.dev>";
+  const from = process.env.SENDGRID_FROM;
+  if (!from) {
+    console.warn("[email] Skipping alert — missing SENDGRID_FROM (must be a verified sender)");
+    return false;
+  }
+
   const severityPrefix = anomaly.severity === "critical" ? "[CRITICAL]" : "[WARNING]";
 
   try {
-    const { error } = await resend.emails.send({
+    const [response] = await sgMail.send({
       from,
       to,
       subject: `${severityPrefix} ${anomaly.message}`,
       html: buildHtml(anomaly, incident, options.dashboardUrl),
     });
-    if (error) {
-      console.error("[email] Resend API error:", error.message);
+    if (response.statusCode >= 400) {
+      console.error("[email] SendGrid error:", response.statusCode, response.body);
       return false;
     }
     console.log(`[email] Alert sent to ${to} for ${anomaly.userEmail}`);

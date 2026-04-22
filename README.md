@@ -151,7 +151,7 @@ You don't need to remember to check the dashboard. The system comes to you.
 
 Anomaly alerts include severity, user, model, value vs threshold, and a direct link to the user's dashboard page. Cycle summaries tell you how many seats are going unused and who's driving cost, so you can act before the invoice lands.
 
-Alerts can be delivered to **Slack** (`chat.postMessage`), **Microsoft Teams** (Adaptive Card via a Power Automate webhook), and/or **email** via [Resend](https://resend.com). Any combination can run simultaneously — set only the env vars for the channels you want.
+Alerts can be delivered to **Slack** (`chat.postMessage`), **Microsoft Teams** (Adaptive Card via a Power Automate webhook), and/or **email** via [SendGrid](https://sendgrid.com). Any combination can run simultaneously — set only the env vars for the channels you want.
 
 ### Web Dashboard
 
@@ -233,8 +233,9 @@ DASHBOARD_URL=http://localhost:3000
 # Optional
 CRON_SECRET=your_secret_here                  # protects the cron endpoint
 
-# Email alerts via Resend (optional)
-RESEND_API_KEY=re_xxxxxxxxxxxx
+# Email alerts via SendGrid (optional)
+SENDGRID_API_KEY=SG.xxxxxxxxxxxx
+SENDGRID_FROM=Cursor Tracker <alerts@yourcompany.com>  # must be a verified sender
 ALERT_EMAIL_TO=team-lead@company.com
 ```
 
