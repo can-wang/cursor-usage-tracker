@@ -1060,12 +1060,46 @@ export function getFullDashboard(days: number = 7): FullDashboard {
     active_users: number;
   }>;
 
+  // Per-user spend within the selected window. Sourced from usage_events
+  // (canonical per-request cost data, see .cursor/rules/cursor-api-data-guide.mdc),
+  // with a fallback to per-user windowed sums from daily_spend when usage_events
+  // hasn't been collected yet (fresh install). Cycle-total fallback from the
+  // spending table is intentionally NOT used here — it would produce the
+  // window-vs-cycle mismatch this query previously suffered from.
+  const userSpendFromEvents = db
+    .prepare(
+      `SELECT user_email as email, COALESCE(SUM(total_cents), 0) as spend_cents
+       FROM usage_events
+       WHERE date(CAST(timestamp AS INTEGER) / 1000, 'unixepoch') >= date('now', ?)
+       GROUP BY user_email`,
+    )
+    .all(dateFilter) as Array<{ email: string; spend_cents: number }>;
+  const userSpendRows =
+    userSpendFromEvents.length > 0
+      ? userSpendFromEvents
+      : (db
+          .prepare(
+            `SELECT email, COALESCE(SUM(spend), 0) as spend_cents FROM (
+               SELECT date, email, MAX(spend_cents) as spend FROM daily_spend
+               WHERE date >= date('now', ?) GROUP BY date, email
+             ) GROUP BY email`,
+          )
+          .all(dateFilter) as Array<{ email: string; spend_cents: number }>);
+  const userSpendValuesSql =
+    userSpendRows.length > 0
+      ? userSpendRows
+          .map((r) => `('${r.email.replace(/'/g, "''")}', ${Math.round(r.spend_cents)})`)
+          .join(", ")
+      : null;
+
   const rankedUsers = db
     .prepare(
       `WITH user_spend AS (
-          SELECT email, spend_cents
-          FROM spending
-          WHERE cycle_start = (SELECT MAX(cycle_start) FROM spending)
+          ${
+            userSpendValuesSql
+              ? `SELECT email, spend_cents FROM (VALUES ${userSpendValuesSql}) AS v(email, spend_cents)`
+              : `SELECT NULL as email, 0 as spend_cents WHERE 0`
+          }
         ),
         user_cache AS (
           SELECT user_email as email,
